@@ -1,1 +1,7 @@
 E16:E88_papers
+build/
+cmake-build-*/
+
+*.root
+*.pdf
+*~
