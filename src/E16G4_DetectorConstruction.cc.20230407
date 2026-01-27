@@ -1,0 +1,1031 @@
+//2016-12-18, uploaded by yokkaich
+//2016-09-23, uploaded by yokkaich
+//2016-08-12, uploaded by nakai
+//2016-03-18, uploaded by nakai
+//2015-09-05, uploaded by nakai
+//2015-01-05, modified by yokkaich
+//2015-01-05, modified by yokkaich
+//2014-08-27, modified by kawama
+//2014-08-27, modified by kawama
+//2014-04-30, modified by kawama
+//2013-11-14, modified by kawama
+//2013-05-13, modified by kawama
+// ====================================================================
+//   E16G4_DetectorConstruction.cc
+//
+// ====================================================================
+ 
+#include <G4Element.hh>
+#include <G4Material.hh>
+#include <G4Box.hh>
+#include <G4Tubs.hh>
+#include <G4Trd.hh>
+#include <G4Torus.hh>
+#include <G4LogicalVolume.hh>
+#include <G4PVPlacement.hh>
+#include <G4VisAttributes.hh>
+#include <G4DisplacedSolid.hh>
+#include <G4SDManager.hh>
+#include <G4TransportationManager.hh>
+#include <G4FieldManager.hh>
+#include <G4VReadOutGeometry.hh>
+#include <G4UserLimits.hh>
+#include <TVector3.h>
+
+#include "E16G4_DetectorConstruction.hh"
+#include "E16G4_DetectorConstructionMessenger.hh"
+#include "E16G4_PrimaryGeneratorAction.hh"
+#include "E16G4_GlobalVar.hh"
+#include "E16G4_MaterialList.hh"
+#include "E16G4_Field.hh"
+#include "E16G4_FMMagnet.hh"
+#include "E16G4_GTR.hh"
+#include "E16G4_GTRGEM.hh"
+#include "E16G4_GTRSD.hh"
+#include "E16G4_GTRFrameSD.hh"
+#include "E16G4_HBD.hh"
+#include "E16G4_HBDHit.hh"
+#include "E16G4_HBDSD.hh"
+#include "E16G4_LG.hh"
+#include "E16G4_LGHit.hh"
+#include "E16G4_LGSD.hh"
+#include "E16G4_SSD.hh"
+#include "E16G4_SSDSD.hh"
+//sako
+#include "E16G4_RPC.hh"
+#include "E16G4_RPCSD.hh"
+
+#include "E16G4_Target.hh"
+#include "E16G4_TargetSD.hh"
+#include "E16G4_TargetChamber.hh"
+#include "E16G4_BeamDump.hh"
+#include "E16G4_VD.hh"
+#include "E16G4_VDCylinder.hh"
+#include "E16G4_VDSD.hh"
+#include "E16G4_VDCylinderSD.hh"
+#include "E16ANA_Transform.hh"
+#include "E16ANA_GeometryV2.hh"
+#include "E16ANA_ParamManager.hh"
+#include "E16ANA_MagneticFieldMap.hh"
+
+#include "E16ANA_ErrorMessage.hh"
+
+//#define NUM_SSD_MODULE_00
+//#define NUM_SSD_MODULE_09
+#define NUM_SSD_MODULE_33
+
+//#define ZERO_MAGNETIC_FIELD
+
+// ====================================================================
+//
+// class description
+//
+// ====================================================================
+
+////////////////////////////////////////////
+ E16G4_DetectorConstruction::E16G4_DetectorConstruction()
+   : mList_(0), EMField_(0)
+////////////////////////////////////////////
+{
+  constMessenger = new E16G4_DetectorConstructionMessenger(this);
+  SetTargetDefaultValue();
+}
+
+/////////////////////////////////////////////
+ E16G4_DetectorConstruction::~E16G4_DetectorConstruction()
+/////////////////////////////////////////////
+{
+  delete constMessenger;
+}
+
+////////////////////////////////////////////
+ E16G4_MaterialList *E16G4_DetectorConstruction::DefineMaterials()
+////////////////////////////////////////////
+{ 
+   E16G4_MaterialList *ml = new E16G4_MaterialList;
+
+   return ml;
+}
+
+////////////////////////////////////////////
+ E16G4_Field *E16G4_DetectorConstruction::MakeField()
+////////////////////////////////////////////
+{ 
+   E16G4_Field *fi = new E16G4_Field;
+
+   return fi;
+}
+
+
+////////////////////////////////////////////////////
+G4VPhysicalVolume* E16G4_DetectorConstruction::Construct()
+   ////////////////////////////////////////////////////
+{
+  //sako 2021/5/24
+  //switch to install along beam axis
+  //default true
+  const bool SSD_BEAM = true;
+  const bool GTR_BEAM = true;
+  const bool run0d_E88 = true;
+   E16G4_PrimaryGeneratorAction *pPGA = E16G4_PrimaryGeneratorAction::GetpPGA();
+   int genID = pPGA->GetGenID();
+   //Sensitive Detector Manager
+   G4SDManager *SDMan= G4SDManager::GetSDMpointer();
+   //Geometry data
+   E16ANA_ParamManager *paramMgr = E16ANA_ParamManager::GetParamManager();
+   char* geomfile=paramMgr->GetGeomFileName();
+   E16ANA_GeometryV2 *geom = new E16ANA_GeometryV2(geomfile);
+
+   G4RotationMatrix *zeRot= new G4RotationMatrix();
+   zeRot->rotateY(0.*degree);
+   G4ThreeVector orig(0.*cm,0.*cm,0.*cm);
+         
+   G4UserLimits* stepLimit ;
+
+   // define materials
+   mList_=DefineMaterials();
+
+   if (!EMField_) {
+     EMField_ = MakeField();
+   }
+   else {
+     EMField_->cleanupElemList();
+   }
+
+   //G4cout <<"DetConst Messenger:"<<tarMaterial[0]<<" "<<materialFlag<<" "<<genID<<G4endl;
+
+   // ==============================================================
+   // world volume
+   // ==============================================================
+   G4Box* worldSolid= new G4Box("world", 
+         WorldSizeX, WorldSizeY, WorldSizeZ);
+
+   G4LogicalVolume* worldLV;
+   if(materialFlag==0){
+      worldLV= new G4LogicalVolume(worldSolid, mList_->Vacuum, "world");
+   }
+   else{
+      worldLV= new G4LogicalVolume(worldSolid, mList_->Air, "world");
+   }
+
+   G4PVPlacement* world= new G4PVPlacement(0, orig, "world", 
+         worldLV, 0, false, 0);
+   // vis. attributes
+   //G4VisAttributes* va;
+   //va= new G4VisAttributes(G4Color(1.,1.,1.));
+   //worldLV-> SetVisAttributes(va);
+   worldLV-> SetVisAttributes(G4VisAttributes::GetInvisible());
+
+   //E16G4_GEMtrd *gemtrd_test = new E16G4_GEMtrd("GEMtrd_test",G4ThreeVector(0.,0.,-100*cm), zeRot, 0);
+     //   gemtrd_test->SetMaterials( mList_->Vacuum, mList_->Vacuum, 
+     //   mList_->Vacuum, mList_->Vacuum, mList_->Vacuum, 
+     //   mList_->Vacuum, mList_->Vacuum, mList_->Vacuum);
+   //gemtrd_test->Place(worldLV);
+
+   // ==============================================================
+   // Target volume
+   // ==============================================================
+   E16G4_TargetChamber *tc = new E16G4_TargetChamber
+      ("TargetChamber",orig, zeRot, 0);
+   G4Material *tmat[7];
+
+   tc->SetThickness(tarThick[0],tarThick[1],tarThick[2],tarThick[3],
+     tarThick[4],tarThick[5],tarThick[6]);
+   //Initial
+   /*tmat[0]=mList_->C12;
+   tmat[1]=mList_->Cu;
+   tmat[2]=mList_->Pb208;*/
+   tmat[0]=mList_->Vacuum;
+   tmat[1]=mList_->Vacuum;
+   tmat[2]=mList_->Vacuum;
+   tmat[3]=mList_->Vacuum;
+   tmat[4]=mList_->Vacuum;
+   tmat[5]=mList_->Vacuum;
+   tmat[6]=mList_->Vacuum;
+
+   for (int i=0;i<7;i++){
+      if (tarMaterial[i]=="Carbon"){
+         tmat[i]=mList_->C12;
+      }
+      else if (tarMaterial[i]=="Copper"){
+         tmat[i]=mList_->Cu;
+      }
+      else if (tarMaterial[i]=="Lead"){
+         tmat[i]=mList_->Pb208;
+      }
+      else if (tarMaterial[i]=="Vacuum"){
+         tmat[i]=mList_->Vacuum;
+      }
+      else if (tarMaterial[i]=="SUS"){
+         tmat[i]=mList_->sus304;
+      }
+      else if (tarMaterial[i]=="Ti"){
+         tmat[i]=mList_->Ti;
+      }
+      else if (tarMaterial[i]=="Mylar"){
+         tmat[i]=mList_->Myl;
+      }
+      else if (tarMaterial[i]=="Eval"){
+         tmat[i]=mList_->Eval;
+      }
+      else{
+	E16WARNING("Target No.%d material in macro: %s is invalid. vacuum is used", i, tarMaterial[i].c_str() );
+	exit(1);
+      }
+   }
+
+   if(materialFlag==0){
+      tc->SetMaterials(mList_->Vacuum);
+   }
+   else if(materialFlag==1){
+      //tc->SetMaterials(mList_->CFRP,mList_->Myl,mList_->sus304,mList_->HeGas,
+     tc->SetMaterials(mList_->CFRP,mList_->Myl,mList_->HeGas,
+     // tc->SetMaterials(mList_->Vacuum,mList_->Myl,mList_->Ti,mList_->HeGas,
+	tmat[0],tmat[1],tmat[2],tmat[3],tmat[4],tmat[5],tmat[6] );
+   }
+   else if(materialFlag==2){
+      tc->SetMaterials(mList_->Vacuum,mList_->Vacuum,
+	mList_->Vacuum,
+	tmat[0],tmat[1],tmat[2],tmat[3],tmat[4],tmat[5],tmat[6] );
+   }
+
+#ifdef NUM_SSD_MODULE_00
+   tc->Place(worldLV);
+#elif defined(NUM_SSD_MODULE_09)
+   tc->Place(worldLV);
+#elif defined(NUM_SSD_MODULE_33)
+   tc->Place2(worldLV);
+#endif
+   G4LogicalVolume *tcLV=tc->GetDetectorLV(); 
+   G4LogicalVolume *tcGasLV=tc->GetChamberGasLV(); 
+   stepLimit = new G4UserLimits(0.3*mm*0.1);
+   tcGasLV->SetUserLimits(stepLimit);
+
+   E16G4_TargetSD* tarSD= new E16G4_TargetSD("target");
+   SDMan->AddNewDetector(tarSD);
+   tc->GetTarget1()->GetDetectorLV()->SetSensitiveDetector(tarSD);
+   tc->GetTarget2()->GetDetectorLV()->SetSensitiveDetector(tarSD);
+   tc->GetTarget3()->GetDetectorLV()->SetSensitiveDetector(tarSD);
+   tc->GetTarget4()->GetDetectorLV()->SetSensitiveDetector(tarSD);
+   tc->GetTarget5()->GetDetectorLV()->SetSensitiveDetector(tarSD);
+   tarSD->SetElement(0,tc->GetTarget1());
+   tarSD->SetElement(1,tc->GetTarget2());
+   tarSD->SetElement(2,tc->GetTarget3());
+   tarSD->SetElement(3,tc->GetTarget4());
+   tarSD->SetElement(4,tc->GetTarget5());
+
+   //stepLimit = new G4UserLimits(0.01*mm);
+   //stepLimit = new G4UserLimits(0.01*mm,DBL_MAX,1*ns);
+   stepLimit = new G4UserLimits(tarThick[0]/2);
+   tc->GetTarget1()->GetDetectorLV()-> SetUserLimits(stepLimit);
+   stepLimit = new G4UserLimits(tarThick[1]/2);
+   tc->GetTarget2()->GetDetectorLV()-> SetUserLimits(stepLimit);
+   stepLimit = new G4UserLimits(tarThick[2]/2);
+   tc->GetTarget3()->GetDetectorLV()-> SetUserLimits(stepLimit);
+   stepLimit = new G4UserLimits(tarThick[3]/2);
+   tc->GetTarget4()->GetDetectorLV()-> SetUserLimits(stepLimit);
+   stepLimit = new G4UserLimits(tarThick[4]/2);
+   tc->GetTarget5()->GetDetectorLV()-> SetUserLimits(stepLimit);
+
+   // ==============================================================
+   // FM Magnet volume
+   // ==============================================================
+   std::string fieldMapName = paramMgr->GetMapFileName();
+   E16G4_FMMagnet *FMMagnet;
+#ifdef ZERO_MAGNETIC_FIELD
+   FMMagnet = new E16G4_FMMagnet("FMMagnet",orig, zeRot, 0.0*gauss);
+#else
+   FMMagnet = new E16G4_FMMagnet("FMMagnet",orig, zeRot, fieldMapName);
+#endif
+
+#if 1   //correct setting
+   if(materialFlag==0){
+      FMMagnet->SetMaterials(mList_->Vacuum, mList_->Vacuum);
+   }
+   else{
+      FMMagnet->SetMaterials(mList_->Fe, mList_->Vacuum);
+   }
+
+#else  //old wrong setting, till 160920
+   if(materialFlag==0){
+      FMMagnet->SetMaterials(mList_->Fe, mList_->Vacuum);
+   }
+   else{
+      FMMagnet->SetMaterials(mList_->Vacuum, mList_->Vacuum);
+   }
+#endif
+
+
+   FMMagnet->Place(worldLV);
+   EMField_->AddElement(FMMagnet);
+
+
+   G4ThreeVector v1(10.1*cm,10.1*cm,10.1*cm);
+   G4ThreeVector v2(-10.1*cm,10.1*cm,10.1*cm);
+   G4ThreeVector v3(10.1*cm,-10.1*cm,10.1*cm);
+   G4ThreeVector v4(-10.1*cm,-10.1*cm,10.1*cm);
+   G4cerr <<"FM field sample in gauss"<<G4endl;
+   G4cerr <<v1<<" "<<FMMagnet->GetMagneticField(v1)/gauss<<G4endl;
+   G4cerr <<v2<<" "<<FMMagnet->GetMagneticField(v2)/gauss<<G4endl;
+   G4cerr <<v3<<" "<<FMMagnet->GetMagneticField(v3)/gauss<<G4endl;
+   G4cerr <<v4<<" "<<FMMagnet->GetMagneticField(v4)/gauss<<G4endl;
+
+   
+   // ==============================================================
+   // GTR volume
+   // ==============================================================
+
+   E16G4_GTRSD* pGTRSD= new E16G4_GTRSD("GTR",geom);
+   //E16G4_GTRFrameSD* pGTRFrameSD= new E16G4_GTRFrameSD("GTRFrame");
+   E16G4_GTRFrameSD* pGTRFrameDriftSpacerSD= new E16G4_GTRFrameSD("GTRFrameDriftSpacer");
+   E16G4_GTRFrameSD* pGTRFrameGEMSD= new E16G4_GTRFrameSD("GTRFrameGEM");
+   E16G4_GTRFrameSD* pGTRFrameReadOutSD= new E16G4_GTRFrameSD("GTRFrameReadOut");
+   E16G4_GTRFrameSD* pGTRFrameAlBaseSD= new E16G4_GTRFrameSD("GTRFrameAlBase");
+   E16G4_GTRFrameSD* pGTRFrameCFRPSD= new E16G4_GTRFrameSD("GTRFrameCFRP");
+   SDMan->AddNewDetector(pGTRSD);
+   SDMan->AddNewDetector(pGTRFrameDriftSpacerSD);
+   SDMan->AddNewDetector(pGTRFrameGEMSD);
+   SDMan->AddNewDetector(pGTRFrameReadOutSD);
+   SDMan->AddNewDetector(pGTRFrameAlBaseSD);
+   SDMan->AddNewDetector(pGTRFrameCFRPSD);
+   //const G4double dphi= 30.*deg;
+   //const G4double dtheta= 27.315*deg;
+   //const G4double dtheta= 26.06*deg;
+   E16G4_GTRGEM *gem1[33];
+   E16G4_GTRGEM *gem2[33];
+   E16G4_GTRGEM *gem3[33];
+   for(G4int j=0; j<3; j++) {
+      for(G4int i=0; i<11; i++) {
+         int ID=j+i*3;
+         std::ostringstream id1;
+         std::ostringstream id2;
+         std::ostringstream id3;
+         G4String Name;
+	 //def         if(ID == 16) {continue;}
+	 //sako do not skip, 2020/3/29
+	 //         if(ID == 16) {;}
+	 //sako 2021/5/24
+	 if (!GTR_BEAM) {
+	   if(ID == 16) {continue;}
+	 }
+
+         /*if((j==1 && i==5)){
+            continue;
+         }*/
+         //G4RotationMatrix *gemRot= new G4RotationMatrix();
+         //G4double theta=geom->GTRtheta[ID]*deg;
+         //G4cout <<dtheta*(4-i)<<" "<<theta<<G4endl;
+         //gemRot->rotateY(-theta);
+
+         //G4ThreeVector g1pos= G4ThreeVector(0.*cm,
+         //      geom->GTRy[0][ID]*cm,
+         //      geom->GTRz[0][ID]*cm);
+         //g1pos.rotateY(theta);
+
+         // GTR1 detector center
+         //TVector3 g1pos_t = E16ANA_Transform::GetGPos(TVector3(0.,0.,0.),geom,0,ID);
+         //G4ThreeVector g1pos = G4ThreeVector(
+         //      g1pos_t.X()*cm,
+         //      g1pos_t.Y()*cm,
+         //      g1pos_t.Z()*cm
+         //      );
+         G4ThreeVector g1pos = geom->GTR(ID,0)->GetDetectorCenterG4();
+
+         // GTR1 rotation matrix
+         //G4RotationMatrix *gem1Rot= new G4RotationMatrix();
+         //gem1Rot->rotateY(-geom->GTRtheta[ID]*deg);
+         //gem1Rot->rotateZ(-geom->GTRrotz_frame[ID]*deg);
+         //gem1Rot->rotateY(-geom->GTRroty_frame[ID]*deg);
+         //gem1Rot->rotateX(-geom->GTRrotx_frame[ID]*deg);
+         //gem1Rot->rotateZ(-geom->GTRrotz[0][ID]*deg);
+         //gem1Rot->rotateY(-geom->GTRroty[0][ID]*deg);
+         //gem1Rot->rotateX(-geom->GTRrotx[0][ID]*deg);
+         G4RotationMatrix *gem1Rot = new G4RotationMatrix(geom->GTR(ID,0)->GetRotationG4());
+         gem1Rot->invert();
+
+         id1 << ID*3+0;
+         Name = G4String("GTRGEM")+id1.str().c_str();;
+         gem1[ID] = new E16G4_GTRGEM(Name,g1pos,gem1Rot,ID*3+0);
+         if(materialFlag==0){
+            gem1[ID]->SetMaterials(mList_->Vacuum);
+         }
+         else{
+         gem1[ID]->SetMaterials(mList_->ArCO2, mList_->Myl, 
+           mList_->Al, mList_->Kapton, mList_->Cu, 
+           mList_->Ni, mList_->FR4, mList_->G10, mList_->CFRP);
+         }
+
+
+         gem1[ID]->PlaceSQ(worldLV);
+
+         //G4ThreeVector g2pos= G4ThreeVector(0.*cm,
+         //      geom->GTRy[1][ID]*cm,
+         //      geom->GTRz[1][ID]*cm);
+         //g2pos.rotateY(theta);
+
+         // GTR2 detector center
+         //TVector3 g2pos_t = E16ANA_Transform::GetGPos(TVector3(0.,0.,0.),geom,1,ID);
+         //G4ThreeVector g2pos = G4ThreeVector(
+         //      g2pos_t.X()*cm,
+         //      g2pos_t.Y()*cm,
+         //      g2pos_t.Z()*cm
+         //      );
+         G4ThreeVector g2pos = geom->GTR(ID,1)->GetDetectorCenterG4();
+
+         // GTR2 rotation matrix
+         //G4RotationMatrix *gem2Rot= new G4RotationMatrix();
+         //gem2Rot->rotateY(-geom->GTRtheta[ID]*deg);
+         //gem2Rot->rotateZ(-geom->GTRrotz_frame[ID]*deg);
+         //gem2Rot->rotateY(-geom->GTRroty_frame[ID]*deg);
+         //gem2Rot->rotateX(-geom->GTRrotx_frame[ID]*deg);
+         //gem2Rot->rotateZ(-geom->GTRrotz[1][ID]*deg);
+         //gem2Rot->rotateY(-geom->GTRroty[1][ID]*deg);
+         //gem2Rot->rotateX(-geom->GTRrotx[1][ID]*deg);
+         G4RotationMatrix *gem2Rot = new G4RotationMatrix(geom->GTR(ID,1)->GetRotationG4());
+         gem2Rot->invert();
+
+         id2 << ID*3+1;
+         Name = G4String("GTRGEM")+id2.str().c_str();;
+         gem2[ID] = new E16G4_GTRGEM(Name,g2pos,gem2Rot,ID*3+1);
+         if(materialFlag==0){
+            gem2[ID]->SetMaterials(mList_->Vacuum);
+         }
+         else{
+         gem2[ID]->SetMaterials(mList_->ArCO2, mList_->Myl, 
+           mList_->Al, mList_->Kapton, mList_->Cu, 
+           mList_->Ni, mList_->FR4, mList_->G10, mList_->CFRP);
+         }
+
+         gem2[ID]->PlaceSQ(worldLV);
+         gem2[ID]->PlaceFrame(worldLV);
+
+         //G4ThreeVector g3pos= G4ThreeVector(0.*cm,
+         //      geom->GTRy[2][ID]*cm,
+         //      geom->GTRz[2][ID]*cm);
+         //g3pos.rotateY(theta);
+
+         // GTR3 detector center
+         //TVector3 g3pos_t = E16ANA_Transform::GetGPos(TVector3(0.,0.,0.),geom,2,ID);
+         //G4ThreeVector g3pos = G4ThreeVector(
+         //      g3pos_t.X()*cm,
+         //      g3pos_t.Y()*cm,
+         //      g3pos_t.Z()*cm
+         //      );
+	 //def
+         G4ThreeVector g3pos = geom->GTR(ID,2)->GetDetectorCenterG4();
+	 //def	 
+	 //	 G4cout << "ID, g3pos = " << ID << " " << g3pos << G4endl;
+	 //test sako 2023/4/7
+	 //         G4double theta=geom->GTRtheta[ID]*deg;
+	 //         G4ThreeVector g3pos= G4ThreeVector(0.*cm,
+	 //					    geom->GTRy[2][ID]*cm,
+	 //					    geom->GTRz[2][ID]*cm);
+	 //         g3pos.rotateY(theta);
+
+         // GTR3 detector center
+         //TVector3 g3pos_t = E16ANA_Transform::GetGPos(TVector3(0.,0.,0.),geom,2,ID);
+         //G4ThreeVector g3pos = G4ThreeVector(
+         //      g3pos_t.X()*cm,
+         //      g3pos_t.Y()*cm,
+         //      g3pos_t.Z()*cm
+         //      );
+
+         // GTR3 rotation matrix
+         //G4RotationMatrix *gem3Rot= new G4RotationMatrix();
+         //gem3Rot->rotateY(-geom->GTRtheta[ID]*deg);
+         //gem3Rot->rotateZ(-geom->GTRrotz_frame[ID]*deg);
+         //gem3Rot->rotateY(-geom->GTRroty_frame[ID]*deg);
+         //gem3Rot->rotateX(-geom->GTRrotx_frame[ID]*deg);
+         //gem3Rot->rotateZ(-geom->GTRrotz[2][ID]*deg);
+         //gem3Rot->rotateY(-geom->GTRroty[2][ID]*deg);
+         //gem3Rot->rotateX(-geom->GTRrotx[2][ID]*deg);
+         G4RotationMatrix *gem3Rot = new G4RotationMatrix(geom->GTR(ID,2)->GetRotationG4());
+         gem3Rot->invert();
+	 //	 G4cout << "ID, gem3Rot = " << ID << " " << gem3Rot << G4endl;
+
+         id3 << ID*3+2;
+         Name = G4String("GTRGEM")+id3.str().c_str();;
+         gem3[ID] = new E16G4_GTRGEM(Name,g3pos,gem3Rot,ID*3+2);
+         if(materialFlag==0){
+            gem3[ID]->SetMaterials(mList_->Vacuum);
+         }
+         else{
+         gem3[ID]->SetMaterials(mList_->ArCO2, mList_->Myl, 
+           mList_->Al, mList_->Kapton, mList_->Cu, 
+           mList_->Ni, mList_->FR4, mList_->G10, mList_->CFRP);
+           
+         }
+
+         gem3[ID]->PlaceSQ_Epoxy(worldLV);
+
+
+         gem1[ID]->GetDetectorLV()-> SetSensitiveDetector(pGTRSD);
+         gem2[ID]->GetDetectorLV()-> SetSensitiveDetector(pGTRSD);
+         gem3[ID]->GetDetectorLV()-> SetSensitiveDetector(pGTRSD);
+         //GTR frame
+         gem1[ID]->GetframeDriftSpacerLV()-> 
+            SetSensitiveDetector(pGTRFrameDriftSpacerSD); 
+         gem1[ID]->GetframeGEMLV()-> 
+            SetSensitiveDetector(pGTRFrameGEMSD); 
+         gem1[ID]->GetframeReadOutLV()-> 
+            SetSensitiveDetector(pGTRFrameReadOutSD); 
+         gem1[ID]->GetframeAlBaseLV()-> 
+            SetSensitiveDetector(pGTRFrameAlBaseSD); 
+        
+         gem2[ID]->GetframeDriftSpacerLV()->  
+            SetSensitiveDetector(pGTRFrameDriftSpacerSD); 
+         gem2[ID]->GetframeGEMLV()->  
+            SetSensitiveDetector(pGTRFrameGEMSD); 
+         gem2[ID]->GetframeReadOutLV()-> 
+            SetSensitiveDetector(pGTRFrameReadOutSD); 
+         gem2[ID]->GetframeAlBaseLV()-> 
+            SetSensitiveDetector(pGTRFrameAlBaseSD); 
+         gem2[ID]->GetframeCFRPLV()-> 
+            SetSensitiveDetector(pGTRFrameCFRPSD); 
+         
+         gem3[ID]->GetframeDriftSpacerLV()->  
+            SetSensitiveDetector(pGTRFrameDriftSpacerSD); 
+         gem3[ID]->GetframeGEMLV()->  
+            SetSensitiveDetector(pGTRFrameGEMSD); 
+         gem3[ID]->GetframeReadOutLV()-> 
+            SetSensitiveDetector(pGTRFrameReadOutSD); 
+         gem3[ID]->GetframeAlBaseLV()-> 
+            SetSensitiveDetector(pGTRFrameAlBaseSD); 
+         
+         
+         stepLimit = new G4UserLimits(0.1*mm);
+         gem1[ID]->GetDetectorLV()-> SetUserLimits(stepLimit);
+         gem2[ID]->GetDetectorLV()-> SetUserLimits(stepLimit);
+         gem3[ID]->GetDetectorLV()-> SetUserLimits(stepLimit);
+         
+         pGTRSD->SetElement((j+i*3)*3+0,gem1[ID] );
+         pGTRSD->SetElement((j+i*3)*3+1,gem2[ID] );
+         pGTRSD->SetElement((j+i*3)*3+2,gem3[ID] );
+         //pGTRFrameSD->SetElement((j+i*3)*3+0,gem1[ID] );
+         pGTRFrameDriftSpacerSD->SetElement((j+i*3)*3+0,gem1[ID] );
+         pGTRFrameGEMSD->SetElement((j+i*3)*3+0,gem1[ID] );
+         pGTRFrameReadOutSD->SetElement((j+i*3)*3+0,gem1[ID] );
+         pGTRFrameAlBaseSD->SetElement((j+i*3)*3+0,gem1[ID] );
+         //pGTRFrameCFRPSD->SetElement((j+i*3)*3+0,gem1[ID] );
+         pGTRFrameDriftSpacerSD->SetElement((j+i*3)*3+0,gem1[ID] );
+         pGTRFrameGEMSD->SetElement((j+i*3)*3+1,gem2[ID] );
+         pGTRFrameReadOutSD->SetElement((j+i*3)*3+1,gem2[ID] );
+         pGTRFrameAlBaseSD->SetElement((j+i*3)*3+1,gem2[ID] );
+         pGTRFrameCFRPSD->SetElement((j+i*3)*3+1,gem2[ID] );
+         pGTRFrameDriftSpacerSD->SetElement((j+i*3)*3+2,gem3[ID] );
+         pGTRFrameGEMSD->SetElement((j+i*3)*3+2,gem3[ID] );
+         pGTRFrameReadOutSD->SetElement((j+i*3)*3+2,gem3[ID] );
+         pGTRFrameAlBaseSD->SetElement((j+i*3)*3+2,gem3[ID] );
+      }
+   }
+   
+   //Cable
+   G4RotationMatrix *cableRot= new G4RotationMatrix();
+   cableRot->rotateX(90.*degree);
+   G4Torus *cable= new G4Torus("GTR_Cable", 0.*cm, 1.3*cm,
+         55*cm,0.*deg,360*deg);
+   G4LogicalVolume *cableLV;
+   if(materialFlag==0){
+      cableLV=new G4LogicalVolume(cable, mList_->Vacuum, "GTR_cableLV");
+   }
+   else {
+      cableLV=new G4LogicalVolume(cable, mList_->Cu, "GTR_cableLV");
+   }
+   //cableLV-> SetVisAttributes(G4Color(1.,0.,0.));
+   cableLV-> SetVisAttributes(new G4VisAttributes(false));
+   new G4PVPlacement(cableRot, G4ThreeVector(0.*cm,16.3*cm,0*cm), 
+         cableLV,"GTR_cablePV", worldLV, false, 0);
+
+   // ==============================================================
+   // HBD volume
+   // ==============================================================
+
+   E16G4_HBDSD* pHBDSD= new E16G4_HBDSD("hbd",geom);
+   SDMan->AddNewDetector(pHBDSD);
+   E16G4_HBD *hbd[27];
+   G4double dtheta_HBD=30.76*deg;
+   for(G4int j=0; j<3; j++) {
+      for(G4int i=0; i<9; i++) {
+         //G4RotationMatrix *armRot= new G4RotationMatrix();
+         std::ostringstream id;
+         id << j+i*3;
+         G4String Name = G4String("HBD")+id.str().c_str();;
+
+         if( j==1 && i==4){
+            continue;
+         }
+	 if (run0d_E88) {
+	   if ((j+i*3)==11){
+	     continue;
+	   }
+	 }
+
+
+         //G4double theta;
+         //theta=dtheta_HBD*(4-i);
+         //armRot->rotateY(-theta);
+         //G4double ycent=(geom->HBDy[j+i*3])*cm;
+         //G4double zcent=(geom->HBDz[j+i*3])*cm;
+         /*G4double ycent;
+           if(j==0)ycent=-74.61*cm;
+           else if(j==1)ycent=0.*cm;
+           else if(j==2)ycent=74.61*cm;
+           G4double zcent=125.5*cm;*/
+         //G4ThreeVector HBDpos= G4ThreeVector(0.*cm,ycent,zcent);
+         //HBDpos.rotateY(theta);
+         //G4cout <<"HBD:"<<HBDpos.x()/cm<<" "<<HBDpos.z()/cm<<G4endl;
+         G4ThreeVector HBDpos = geom->HBD(j+i*3)->GetDetectorCenterG4();
+         G4RotationMatrix *armRot= new G4RotationMatrix(geom->HBD(j+i*3)->GetRotationG4());
+         armRot->invert();
+
+         hbd[j+i*3] = new E16G4_HBD(Name,HBDpos,armRot,j+i*3);
+         if(materialFlag==0){
+            hbd[j+i*3]->SetMaterials(mList_->Vacuum,mList_->Vacuum,
+                  mList_->Vacuum,mList_->Vacuum,mList_->Vacuum,mList_->Vacuum);
+         }
+         else{
+            hbd[j+i*3]->SetMaterials(mList_->CF4,mList_->Myl,
+                  mList_->Al,mList_->Cu,mList_->Al,mList_->FR4);
+         }
+         if(j==1)hbd[j+i*3]->Place0(worldLV);
+         else hbd[j+i*3]->Place1(worldLV);
+         //G4cout <<"GTR:"<<i<<" "<<j<<G4endl;
+         hbd[j+i*3]->GetDetectorLV()-> SetSensitiveDetector(pHBDSD);
+         G4UserLimits* stepLimit = new G4UserLimits(1*cm);
+         hbd[j+i*3]->GetDetectorLV()-> SetUserLimits(stepLimit);
+         pHBDSD->SetElement((j+i*3),hbd[j+i*3] );
+      }
+   }
+
+   // ==============================================================
+   // RPC volume, sako 2019/9/16
+   // ==============================================================
+
+   E16G4_RPCSD* pRPCSD= new E16G4_RPCSD("rpc",geom);
+   SDMan->AddNewDetector(pRPCSD);
+   E16G4_RPC *rpc[81];
+   G4double dtheta_RPC=30.76*deg;
+   for (G4int ix=0;ix<3;ix++) {//x
+     for(G4int j=0; j<3; j++) {//y
+       for(G4int i=0; i<9; i++) {//phi
+         //G4RotationMatrix *armRot= new G4RotationMatrix();
+         std::ostringstream id;
+	 //         id << j+i*3;
+	 G4int index = ix+j*3+i*3*3;
+         id << index;
+         G4String Name = G4String("RPC")+id.str().c_str();;
+	 
+	 //include the most forward rpc?
+	 //sako, 2020/9/6, now RPC should be included for PAC study
+	 //         if( j==1 && i==4){//at the beamline
+	 //	   continue;
+	 //         }
+	 
+	 //         G4ThreeVector RPCpos = geom->RPC(j+i*3)->GetDetectorCenterG4();
+         G4ThreeVector RPCpos = geom->RPC(index)->GetDetectorCenterG4();
+	 //         G4RotationMatrix *armRot= new G4RotationMatrix(geom->RPC(j+i*3)->GetRotationG4());
+         G4RotationMatrix *armRot= new G4RotationMatrix(geom->RPC(index)->GetRotationG4());
+         armRot->invert();
+
+         rpc[index] = new E16G4_RPC(Name,RPCpos,armRot,index);
+         if(materialFlag==0){
+	   rpc[index]->SetMaterials(mList_->Vacuum,mList_->Vacuum,
+				    mList_->Vacuum,mList_->Vacuum);
+         }
+         else{
+	   rpc[index]->SetMaterials(mList_->SiO2,mList_->G10,
+				    mList_->Air,mList_->Cu);
+         }
+	 rpc[index]->Place(worldLV);
+         rpc[index]->GetDetectorLV()-> SetSensitiveDetector(pRPCSD);
+         G4UserLimits* stepLimit = new G4UserLimits(1*cm);
+         rpc[index]->GetDetectorLV()-> SetUserLimits(stepLimit);
+         pRPCSD->SetElement(index,rpc[index] );
+       }
+     }
+   }
+
+
+   // ==============================================================
+   // LG volume
+   // ==============================================================
+   E16G4_LG *LG[3*9*36];
+   //E16G4_LGSD* pLGSD= new E16G4_LGSD("lg");
+   //SDMan->AddNewDetector(pLGSD);
+   E16G4_VD *LGVD[3*9];
+   E16G4_VDSD* LGVDSD= new E16G4_VDSD("LGVD");
+   SDMan->AddNewDetector(LGVDSD);
+   G4double dLG=(130.+20.+3);//3 cm is adjustment in Geant
+   G4double dtheta_LG=dtheta_HBD;
+   for(G4int j=0; j<3; j++) {
+      for(G4int i=0; i<9; i++) {
+         //G4ThreeVector armVec= G4ThreeVector(0.,0.,129.5*cm);
+         G4double ycent=93.3429*(j-1);
+         G4ThreeVector armVec= G4ThreeVector(0.,ycent*cm,dLG*cm);
+         G4RotationMatrix *armRot= new G4RotationMatrix();
+
+         if(j==1 && i==4){
+            continue;
+         }
+	 if (run0d_E88) {
+	   if ((j+i*3)==11){
+	     continue;
+	   }
+	 }
+
+         //G4double phi=dphi*(j-1);
+         G4double theta=dtheta_LG*(4-i);
+         //armVec.rotateX(phi);
+         armVec.rotateY(theta);
+         //armRot->rotateX(phi);
+         armRot->rotateY(theta);
+
+         G4double x[6]={24.57,12.31,0,-12.31,-24.57,-36.74};
+         G4double z[6]={-1.47,-0.37,0,-0.37,-1.47,-3.31};
+         G4int k=0;
+         //G4double theta=3.428*degree;
+         //G4RotationMatrix *rotLG= new G4RotationMatrix();
+         //rotLG->rotateX(theta); 
+         //E16ANA_Transform *pTr = new E16ANA_Transform();
+         for (G4int ii=0;ii<6;ii++){
+            for (G4int jj=0;jj<6;jj++){
+               std::ostringstream id;
+               id << (j+i*3)*36+k;
+               G4String Name = G4String("LG")+id.str().c_str();;
+               G4double y=12.2*(2-ii);
+               //TVector3 gpos_t3=pTr->GetGPos
+               TVector3 gpos_t3=E16ANA_Transform::GetGPos
+                  (TVector3(x[jj],y,z[jj]),theta/degree,
+                   ycent,dLG,0,0); 
+               G4ThreeVector gpos=G4ThreeVector(gpos_t3.X()*cm,
+                     gpos_t3.Y()*cm,gpos_t3.Z()*cm); 
+               LG[(j+i*3)*36+k] = new E16G4_LG(Name,gpos,
+                     armRot,(j+i*3)*36+k);
+               if(materialFlag==0){
+                  LG[(j+i*3)*36+k]->SetMaterials(mList_->Vacuum);
+               }
+               else{
+                  LG[(j+i*3)*36+k]->SetMaterials(mList_->LG);
+               }   
+               LG[(j+i*3)*36+k]->Place(worldLV);
+               /*LG[(j+i*3)*36+k]->GetDetectorLV()-> SetSensitiveDetector(pLGSD);
+                 pLGSD->SetElement((j+i*3)*36+k,LG[(j+i*3)*36+k] );*/
+               k++;
+            }
+         }
+         // LGVD
+         std::ostringstream idvd;
+         idvd << j+i*3;
+         G4String VDName = G4String("LGVD")+idvd.str().c_str();;
+         G4double SizeX = 770.*mm;
+         G4double SizeY = 700.*mm;
+         if(j != 1){ // not middle (upper and lower)
+            SizeY -= 1.0*mm;
+         }
+         G4double SizeZ = 0.01*cm;
+         G4ThreeVector gpos_LGVD = geom->LGVD(j+i*3)->GetDetectorCenterG4();
+         G4RotationMatrix *rot_LGVD= new G4RotationMatrix(geom->LGVD(j+i*3)->GetRotationG4());
+         //rot_LGVD->invert();
+         LGVD[j+i*3]=new E16G4_VD( VDName, gpos_LGVD, rot_LGVD,
+               SizeX, SizeY, SizeZ, j+i*3 );
+         LGVD[j+i*3]->SetMaterials( mList_->Vacuum );
+         LGVD[j+i*3]->Place(worldLV);
+         LGVD[j+i*3]->GetDetectorLV()-> SetSensitiveDetector(LGVDSD);
+         LGVD[j+i*3]->SetGeometry(geom->LGVD(j+i*3));
+         LGVDSD->SetElement(j+i*3,LGVD[j+i*3] );
+      }
+   }
+
+   // ==============================================================
+   // SSD volume
+   // ==============================================================
+
+   E16G4_SSDSD *pSSDSD = new E16G4_SSDSD("ssd",geom);
+   SDMan->AddNewDetector(pSSDSD);
+
+#ifndef NUM_SSD_MODULE_00
+   E16G4_SSD *ssd[33];
+#ifdef NUM_SSD_MODULE_09
+   //E16G4_SSD *ssd[9];
+   const int forward_ssd_id = 16;
+   for(int i=12; i<21; i++){
+   //for(int i=0; i<9; i++){
+#elif defined(NUM_SSD_MODULE_33)
+   const int forward_ssd_id = 16;
+   for(int i=0; i<33; i++){
+#endif
+     //sako, 2018/10/10      if(i == forward_ssd_id) continue; // beam line
+     //sako 2021/5/24
+
+     if (!SSD_BEAM) {
+       if(i == forward_ssd_id) continue; // beam line
+     }
+      std::ostringstream ss;
+      ss << i;
+      G4String name = G4String("SSD")+ss.str();
+      G4ThreeVector pos_ssd = geom->SSD(i)->GetDetectorCenterG4();
+      G4RotationMatrix *rot_ssd = new G4RotationMatrix(geom->SSD(i)->GetRotationG4());
+      rot_ssd->invert();
+      //sako 2019/04/14
+      //i=16, default (0,0,98.85)
+      //      G4cout << "pos_ssd(old)(" << i << ") = " << pos_ssd << G4endl;
+      //      if (i==16) {
+      //      	pos_ssd.setZ(400.);
+      //      }
+      G4cout << "pos_ssd(" << i << ") = " << pos_ssd << G4endl;
+      //sako end
+
+      G4ThreeVector pos_target_chamber = tc->GetChamberCenter();
+      //sako
+      G4cout << "pos_target_chamber = " << pos_target_chamber << G4endl;
+
+      if (i==16) {
+	//      	ssd[i] = new E16G4_SSD(name, pos_ssd, rot_ssd, i);
+	ssd[i] = new E16G4_SSD(name, pos_ssd-pos_target_chamber, rot_ssd, i);
+      } else {
+	ssd[i] = new E16G4_SSD(name, pos_ssd-pos_target_chamber, rot_ssd, i);
+      }
+      //sako end
+      //def
+      //      ssd[i] = new E16G4_SSD(name, pos_ssd-pos_target_chamber, rot_ssd, i);
+      if(materialFlag == 0){
+	ssd[i]->SetMaterials(mList_->Vacuum,mList_->Vacuum );
+      }else{
+	ssd[i]->SetMaterials(mList_->Si28, mList_->G10);
+      }
+      //sako
+      if (i==16) {
+	//      	ssd[i]->Place(worldLV);
+	ssd[i]->Place(tcGasLV);
+      } else {
+	ssd[i]->Place(tcGasLV);
+      }
+      //sako end
+      //def sako
+      //      ssd[i]->Place(tcGasLV);
+      //G4cout << "SSD id = " << i << ", SSD detector LV pointer = " << ssd[i]->GetDetectorLV() << G4endl;
+      ssd[i]->GetDetectorLV()->SetSensitiveDetector(pSSDSD);
+      stepLimit = new G4UserLimits(300.0*um/10.0);
+      ssd[i]->GetDetectorLV()->SetUserLimits(stepLimit);
+      pSSDSD->SetElement(i, ssd[i]);
+   }
+#endif
+
+   E16G4_VDCylinderSD* VDCylSD= new E16G4_VDCylinderSD("VDCylinder");
+   SDMan->AddNewDetector(VDCylSD);
+   E16G4_VDCylinder *VDCyl0= new E16G4_VDCylinder( "VDCyl0",
+      G4ThreeVector(0.,0.,0.),
+      zeRot,
+      18.5*cm, 10*um, 20*cm, 
+      30.*degree,300*degree,0);
+      VDCyl0->SetMaterials( mList_->Vacuum );
+   VDCyl0->Place(worldLV);
+      VDCyl0->GetDetectorLV()-> SetSensitiveDetector(VDCylSD);
+      VDCylSD->SetElement(0,VDCyl0 );
+   
+   E16G4_VDCylinder *VDCyl1= new E16G4_VDCylinder( "VDCyl1",
+      G4ThreeVector(0.,0.,0.),
+      zeRot,
+      68*cm, 10*um, 60*cm, 
+      0.*degree,360*degree,1);
+      VDCyl1->SetMaterials( mList_->Vacuum );
+   VDCyl1->Place(worldLV);
+      VDCyl1->GetDetectorLV()-> SetSensitiveDetector(VDCylSD);
+      VDCylSD->SetElement(1,VDCyl1 );
+   
+   E16G4_VDCylinder *VDCyl2= new E16G4_VDCylinder( "VDCyl2",
+      G4ThreeVector(0.,0.,0.),
+      zeRot,
+      127*cm, 10*um, 150*cm, 
+      0.*degree,360*degree,2);
+      VDCyl2->SetMaterials( mList_->Vacuum );
+   VDCyl2->Place(worldLV);
+      VDCyl2->GetDetectorLV()-> SetSensitiveDetector(VDCylSD);
+      VDCylSD->SetElement(2,VDCyl2 );
+
+   E16G4_VDCylinder *VDCyl3= new E16G4_VDCylinder( "VDCyl3",
+      G4ThreeVector(0.,0.,0.),
+      zeRot,
+      170*cm, 10*um, 150*cm, 
+      0.*degree,360*degree,3);
+      VDCyl3->SetMaterials( mList_->Vacuum );
+   VDCyl3->Place(worldLV);
+      VDCyl3->GetDetectorLV()-> SetSensitiveDetector(VDCylSD);
+      VDCylSD->SetElement(3,VDCyl3 );
+
+
+   if (genID==3){
+      G4double dumpZ=0.*cm;
+
+      G4ThreeVector posBdump= G4ThreeVector(0.,0.,1040*cm+dumpZ);
+      //G4ThreeVector posBdump= G4ThreeVector(0.,0.,1040*cm);
+      E16G4_BeamDump *bdump = new E16G4_BeamDump("BeamDump",posBdump, zeRot, 0);
+      bdump->SetMaterials(mList_->Fe,mList_->Concre);
+      bdump->PlaceE16(worldLV);
+
+      E16G4_VD *VD[8];
+      E16G4_VDSD* VDSD= new E16G4_VDSD("VD");
+      SDMan->AddNewDetector(VDSD);
+
+
+      G4double SizeX = 1000.*cm;
+      G4double SizeY = 300.*cm;
+      G4double SizeZ = .1*cm;
+      G4ThreeVector posVD0( 0.*cm, 0.*cm, 800*cm+dumpZ );
+      //G4ThreeVector posVD0( 0.*cm, 0.*cm, 800*cm );
+      //G4ThreeVector posVD0( 0.*cm, 0.*cm, 740*cm );
+      VD[0]=new E16G4_VD( "VD0", posVD0, zeRot,
+            SizeX, SizeY, SizeZ, 0 );
+      VD[0]->SetMaterials( mList_->Vacuum );
+      VD[0]->Place(worldLV);
+      VD[0]->GetDetectorLV()-> SetSensitiveDetector(VDSD);
+      VDSD->SetElement(0,VD[0] );
+
+      G4ThreeVector posVD1( 0.*cm, 0.*cm, 500*cm+dumpZ );
+      //G4ThreeVector posVD1( 0.*cm, 0.*cm, 500*cm );
+      VD[1]=new E16G4_VD( "VD1", posVD1, zeRot,
+            SizeX, SizeY, SizeZ, 1 );
+      VD[1]->SetMaterials( mList_->Vacuum );
+      VD[1]->Place(worldLV);
+      VD[1]->GetDetectorLV()-> SetSensitiveDetector(VDSD);
+      VDSD->SetElement(1,VD[1] );
+
+      G4ThreeVector posVD2( 0.*cm, 0.*cm, 200*cm );
+      //G4ThreeVector posVD2( 0.*cm, 0.*cm, 106*cm );
+      VD[2]=new E16G4_VD( "VD2", posVD2, zeRot,
+            SizeX, SizeY, SizeZ, 2 );
+      VD[2]->SetMaterials( mList_->Vacuum );
+      VD[2]->Place(worldLV);
+      VD[2]->GetDetectorLV()-> SetSensitiveDetector(VDSD);
+      VDSD->SetElement(2,VD[2] );
+
+      SizeX = 70.*cm;
+      SizeY = 70.*cm;
+      G4ThreeVector posVD3( 0.*cm, 0.*cm, 130*cm );
+      VD[3]=new E16G4_VD( "VD3", posVD3, zeRot,
+            SizeX, SizeY, SizeZ, 3 );
+      VD[3]->SetMaterials( mList_->Vacuum );
+      VD[3]->Place(worldLV);
+      VD[3]->GetDetectorLV()-> SetSensitiveDetector(VDSD);
+      VDSD->SetElement(3,VD[3] );
+
+      SizeX = 30.*cm;
+      SizeY = 30.*cm;
+      G4ThreeVector posVD4( 0.*cm, 0.*cm, 60*cm );
+      //G4ThreeVector posVD4( 0.*cm, 0.*cm, 0.1*cm );
+      VD[4]=new E16G4_VD( "VD4", posVD4, zeRot,
+            SizeX, SizeY, SizeZ, 4 );
+      VD[4]->SetMaterials( mList_->Vacuum );
+      VD[4]->Place(worldLV);
+      VD[4]->GetDetectorLV()-> SetSensitiveDetector(VDSD);
+      VDSD->SetElement(4,VD[4] );
+
+      SizeX = 300.*cm;
+      SizeY = 300.*cm;
+      G4RotationMatrix *Rot1= new G4RotationMatrix();
+      Rot1->rotateY(90.*degree);
+      G4ThreeVector posVD5( 310.*cm, 0.*cm, 1040*cm+dumpZ );
+      //G4ThreeVector posVD5( 310.*cm, 0.*cm, 1040*cm );
+      VD[5]=new E16G4_VD( "VD5", posVD5, Rot1,
+            SizeX, SizeY, SizeZ, 5 );
+      VD[5]->SetMaterials( mList_->Vacuum );
+      VD[5]->Place(worldLV);
+      VD[5]->GetDetectorLV()-> SetSensitiveDetector(VDSD);
+      VDSD->SetElement(5,VD[5] );
+
+      G4ThreeVector posVD6( -310.*cm, 0.*cm, 1040*cm+dumpZ );
+      //G4ThreeVector posVD6( -310.*cm, 0.*cm, 1040*cm );
+      VD[6]=new E16G4_VD( "VD6", posVD6, Rot1,
+            SizeX, SizeY, SizeZ, 6 );
+      VD[6]->SetMaterials( mList_->Vacuum );
+      VD[6]->Place(worldLV);
+      VD[6]->GetDetectorLV()-> SetSensitiveDetector(VDSD);
+      VDSD->SetElement(6,VD[6] );
+
+      SizeX = 1000.*cm;
+      SizeY = 300.*cm;
+      G4ThreeVector posVD7( 0.*cm, 0.*cm, 1350*cm+dumpZ );
+      //G4ThreeVector posVD7( 0.*cm, 0.*cm, 1350*cm );
+      VD[7]=new E16G4_VD( "VD7", posVD7, zeRot,
+            SizeX, SizeY, SizeZ, 7 );
+      VD[7]->SetMaterials( mList_->Vacuum );
+      VD[7]->Place(worldLV);
+      VD[7]->GetDetectorLV()-> SetSensitiveDetector(VDSD);
+      VDSD->SetElement(7,VD[7] );
+
+   }
+
+
+   // ==============================================================
+   // return the world volume
+   // ==============================================================
+   return world;
+   
+}
+
+#include <G4RunManager.hh>
+void E16G4_DetectorConstruction::UpdateGeometry()
+{
+   G4RunManager::GetRunManager()->DefineWorldVolume(Construct());
+}
+

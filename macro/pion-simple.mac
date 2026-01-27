@@ -1,0 +1,75 @@
+#pion-simple.mac 170626 by S. Yokkaichi
+#    Last modified at <2017-12-02 22:48:13 >
+#
+# used by E16G4-yok, with arguments for the material flag & input file
+#
+#
+/control/verbose 2
+/tracking/verbose 0
+/tracking/storeTrajectory 1
+/event/verbose 0
+/run/verbose 2
+/process/verbose 0
+/control/suppressAbortion 0
+
+/E16G4/gun/setRndmSeed 100001
+
+# 0 vac  1 ON
+#/E16G4/det/setMaterialFlag 0
+#   -> set as an argument in the case of  E16G4-yok
+#
+#/E16G4/gun/setSeedFile pi0_30gev-Cu-1350-0.dat
+#   -> set as an argument in the case of  E16G4-yok
+
+
+/E16G4/gun/setGenID 14
+# input file format type:   
+#    14: JAM-event multi particle type:  for pions/protons
+#    11: two body type:   phi, omega, Ks, Lambda...
+
+#Event offset for JAM evsnts
+/E16G4/gun/setEvOffset 0
+
+#Width of generation point in sigma [cm]
+# .. possible size of beam profile
+/E16G4/gun/setSigmaX 0.15 
+/E16G4/gun/setSigmaY 0.17 
+/E16G4/gun/setSigmaZ 0.004 
+
+#Z-coordinate of generation point [cm]
+/E16G4/gun/setZPoint -0.0
+
+##Target material (Vacuum/Carbon/Copper/Lead/SUS/Ti/Eval/Mylar)
+##Target1 : z=-2cm
+##Target2 : z=-1cm
+##Target3 : z= 0cm
+##Target4 : z= 1cm
+##Target5 : z= 2cm
+##Target6 : z= -20.575cm
+##Target7 : z= -19.575cm
+# position is hard-coded in E16G4_TargetChamber.cc
+#
+/E16G4/det/setTarget1 Copper
+/E16G4/det/setTarget2 Vacuum
+/E16G4/det/setTarget3 Copper
+/E16G4/det/setTarget4 Vacuum
+/E16G4/det/setTarget5 Copper
+/E16G4/det/setTarget6 SUS
+/E16G4/det/setTarget7 Eval
+#
+/E16G4/det/setTargetThickness1 80
+/E16G4/det/setTargetThickness2 0
+/E16G4/det/setTargetThickness3 80
+/E16G4/det/setTargetThickness4 0
+/E16G4/det/setTargetThickness5 80
+/E16G4/det/setTargetThickness6 100
+/E16G4/det/setTargetThickness7 50
+
+#Output file name : obsolete format
+/E16G4/ana/setOutFile useless.g4d 
+
+/run/initialize
+
+
+
+
