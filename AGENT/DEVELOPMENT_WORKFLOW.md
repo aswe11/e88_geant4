@@ -9,7 +9,7 @@ Modify the code in the local environment and synchronize the working tree to KEK
 
 ## 2. Synchronization Target
 - **Server:** `kekcc`
-- **Path:** `/home/had/jws/e88/e88-geant4`
+- **Path:** `/home/had/jws/e88/e88_geant4`
 
 ---
 
