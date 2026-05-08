@@ -28,3 +28,17 @@
 - Updated class names, constructors, destructors, include guards, and `#include` directives.
 - Updated the `makefile` to ensure the build system points to the new filenames.
 - Verified that no `E16G4_RPC` references remain in the active workspace.
+
+## 2026-05-08: KEKCC Environment Mapping
+
+### Environment Documentation
+- Created [docs/KEKCC_ENVIRONMENT.md](file:///Users/JWS/Desktop/E88/E88_simulation/docs/KEKCC_ENVIRONMENT.md) with detailed versions:
+  - Geant4: 11.2.2 (Significant jump from CCJ's 9.5.1)
+  - ROOT: 6.32.04
+  - CMake: 3.x
+- Identified high risk of API incompatibilities due to the Geant4 version gap.
+
+### Setup Script Refinement
+- Updated `KEKCC_setup.sh` and `KEKCC_setup.csh` with actual KEKCC system paths.
+- Ensured `E16SYS` points to the user's project directory (`/home/had/jws/e88/e88_geant4`).
+- Integrated system setup scripts for ROOT and Geant4.

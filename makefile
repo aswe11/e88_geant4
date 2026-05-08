@@ -18,16 +18,50 @@ ifeq ($(E16ANA_VERSION),)
   E16ANA_VERSION = 2020-09-16
 endif
 
-ROOTLIBS_DYN = -L$(E16SYS)/lib64 -lCore -lCint -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint -lPostscript -lMatrix -lPhysics -lMathCore -lThread -pthread -lm -ldl -rdynamic -lMinuit -lGenVector -lSpectrum
-ROOTLIBS_STAT = -L$(E16SYS)/lib64 -lRoot -lpcre -llzma -pthread -lz -lm -ldl 
+# --- ROOT Detection ---
+# 1. Try root-config from PATH
+# 2. Try $(ROOTSYS)/bin/root-config
+# 3. Try $(E16SYS)/bin/root-config (CCJ fallback)
+ROOT_CONFIG := $(shell which root-config 2>/dev/null)
+ifeq ($(ROOT_CONFIG),)
+  ifneq ($(ROOTSYS),)
+    ROOT_CONFIG := $(ROOTSYS)/bin/root-config
+  endif
+endif
+ifeq ($(wildcard $(ROOT_CONFIG)),)
+  ROOT_CONFIG := $(E16SYS)/bin/root-config
+endif
 
-ROOTINCLUDE    = `$(E16SYS)/bin/root-config --cflags`
+# Extract flags using root-config
+ROOT_CFLAGS := $(shell $(ROOT_CONFIG) --cflags 2>/dev/null)
+ROOT_LIBS   := $(shell $(ROOT_CONFIG) --libs 2>/dev/null)
+
+# Fallbacks for CCJ (ROOT 5) if root-config detection fails
+ROOTLIBS_DYN_CCJ  = -L$(E16SYS)/lib64 -lCore -lCint -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint -lPostscript -lMatrix -lPhysics -lMathCore -lThread -pthread -lm -ldl -rdynamic -lMinuit -lGenVector -lSpectrum
+ROOTLIBS_STAT_CCJ = -L$(E16SYS)/lib64 -lRoot -lpcre -llzma -pthread -lz -lm -ldl
+
+ifeq ($(ROOT_LIBS),)
+  ROOTLIBS_DYN  = $(ROOTLIBS_DYN_CCJ)
+  ROOTLIBS_STAT = $(ROOTLIBS_STAT_CCJ)
+else
+  ROOTLIBS_DYN  = $(ROOT_LIBS)
+  ROOTLIBS_STAT = $(ROOT_LIBS)
+endif
+
+ifeq ($(ROOT_CFLAGS),)
+  # Fallback include path for CCJ
+  ROOTINCLUDE_FLAGS = -I$(E16SYS)/include/root
+else
+  ROOTINCLUDE_FLAGS = $(ROOT_CFLAGS)
+endif
+# ----------------------
+
 G4INCLUDE      = $(E16SYS)/include/Geant4
 HepPDTINCLUDE  = $(E16SYS)/include/ 
 
 CLHEPLIB = -L$(E16SYS)/lib64 -lG4clhep -lHepPDT -lHepPID
 
-G4LIB    = -L$(E16SYS)/lib64 -lG4visHepRep -lG4vis_management -lG4visXXX -lG4Tree -lG4physicslists -lG4run -lG4tracking -lG4processes -lG4materials -lG4GMocren -lG4modeling -lG4event -lG4digits_hits -lG4geometry  -lG4intercoms -lG4analysis -lG4FR -lG4error_propagation -lG4expat -lG4gl2ps -lG4global -lG4graphics_reps -lG4interfaces -lG4parmodels -lG4particles -lG4persistency -lG4RayTracer -lG4readout -lG4track  -lG4OpenGL  -lG4VRML
+G4LIB    = -L$(E16SYS)/lib64 -lG4visHepRep -lG4vis_management -lG4visXXX -lG4Tree -lG4physicslists -lG4run -lG4tracking -lG4processes -lG4materials -lG4GMocren -lG4modeling -lG4event -lG4digits_hits -lG4geometry  -lG4intercoms -lG4analysis -lG4FR -lG4error_propagation -lG4expat -lG4gl2ps -lG4global -lG4graphics_reps -lG4interfaces -lG4parmodels -lG4persistency -lG4RayTracer -lG4readout -lG4track  -lG4OpenGL  -lG4VRML
 
 3G4LIB    = -L$(E16SYS)/lib64 -lG4visHepRep -lG4vis_management -lG4visXXX -lG4Tree -lG4physicslists -lG4run -lG4tracking -lG4processes -lG4materials -lG4GMocren -lG4modeling -lG4event -lG4digits_hits -lG4geometry  -lG4intercoms -lG4analysis -lG4FR -lG4error_propagation -lG4expat -lG4gl2ps -lG4global -lG4graphics_reps -lG4interfaces -lG4parmodels -lG4persistency -lG4RayTracer -lG4readout -lG4track  -lG4particles  -lG4OpenGL  -lG4VRML -lG4zlib
 
@@ -42,7 +76,7 @@ AR = ar
 ARFLAGS = rv
 SHADOP = -shared -fPIC
 
-INCDIR= -I./include/ -I$(E16INCLUDE) -I$(ROOTINCLUDE) -I$(G4INCLUDE)  -I$(HepPDTINCLUDE)
+INCDIR= -I./include/ -I$(E16INCLUDE) $(ROOTINCLUDE_FLAGS) -I$(G4INCLUDE)  -I$(HepPDTINCLUDE)
 
 CCFLAGS = -O3 -Wall -g 
 STATFLAGS = -static ${CCFLAGS} 
