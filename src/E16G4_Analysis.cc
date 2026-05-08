@@ -50,7 +50,7 @@
 #include "E16G4_GTRHit.hh"
 #include "E16G4_GTRFrameHit.hh"
 #include "E16G4_SSDHit.hh"
-#include "E16G4_RPCHit.hh"
+#include "E88G4_RPCHit.hh"
 #include "E16G4_HBDHit.hh"
 #include "E16G4_LGHit.hh"
 #include "E16G4_VDHit.hh"

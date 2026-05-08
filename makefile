@@ -7,6 +7,17 @@
 # library/include path section
 #
 
+# Default E16SYS if not set (fallback to CCJ path for backward compatibility)
+ifeq ($(E16SYS),)
+  E16SYS = /ccj/u/E16
+endif
+
+# Detect environment for sub-library versions
+# At CCJ, we use 2020-09-16. At KEKCC, this should be set in the setup script.
+ifeq ($(E16ANA_VERSION),)
+  E16ANA_VERSION = 2020-09-16
+endif
+
 ROOTLIBS_DYN = -L$(E16SYS)/lib64 -lCore -lCint -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint -lPostscript -lMatrix -lPhysics -lMathCore -lThread -pthread -lm -ldl -rdynamic -lMinuit -lGenVector -lSpectrum
 ROOTLIBS_STAT = -L$(E16SYS)/lib64 -lRoot -lpcre -llzma -pthread -lz -lm -ldl 
 
@@ -20,18 +31,8 @@ G4LIB    = -L$(E16SYS)/lib64 -lG4visHepRep -lG4vis_management -lG4visXXX -lG4Tre
 
 3G4LIB    = -L$(E16SYS)/lib64 -lG4visHepRep -lG4vis_management -lG4visXXX -lG4Tree -lG4physicslists -lG4run -lG4tracking -lG4processes -lG4materials -lG4GMocren -lG4modeling -lG4event -lG4digits_hits -lG4geometry  -lG4intercoms -lG4analysis -lG4FR -lG4error_propagation -lG4expat -lG4gl2ps -lG4global -lG4graphics_reps -lG4interfaces -lG4parmodels -lG4persistency -lG4RayTracer -lG4readout -lG4track  -lG4particles  -lG4OpenGL  -lG4VRML -lG4zlib
 
-E16INCLUDE     = $(E16SYS)/E16ANA/2020-09-16/include
-E16ANALIB     = -L$(E16SYS)/E16ANA/2020-09-16/lib64 -lE16ANA
-#E16INCLUDE     = $(E16SYS)/E16ANA/2021-02-27/include
-#E16ANALIB     = -L$(E16SYS)/E16ANA/2021-02-27/lib64 -lE16ANA
-#E16INCLUDE     = $(E16SYS)/E16ANA/2020-08-30/include
-#E16ANALIB     = -L$(E16SYS)/E16ANA/2020-08-30/lib64 -lE16ANA
-#E16INCLUDE     = $(E16SYS)/E16ANA/old/include
-#E16ANALIB     = -L$(E16SYS)/E16ANA/old/lib64 -lE16ANA
-#E16INCLUDE     = $(E16SYS)/E16ANA/pro/include
-#E16ANALIB     = -L$(E16SYS)/E16ANA/pro/lib64 -lE16ANA
-#E16INCLUDE     = /ccj/u/nakai/E16/E16ANA/2016-05-05/include
-#E16ANALIB     = -L/ccj/u/nakai/E16/E16ANA/2016-05-05/lib64 -lE16ANA
+E16INCLUDE     = $(E16SYS)/E16ANA/$(E16ANA_VERSION)/include
+E16ANALIB      = -L$(E16SYS)/E16ANA/$(E16ANA_VERSION)/lib64 -lE16ANA
 
 
 E16G4LIBlocal   = -L./lib64 -lE16G4
@@ -109,9 +110,9 @@ SRCS0 =  $(SRCD)E16G4_Analysis.cc \
          $(SRCD)E16G4_SSD.cc \
          $(SRCD)E16G4_SSDHit.cc \
          $(SRCD)E16G4_SSDSD.cc \
-         $(SRCD)E16G4_RPC.cc \
-         $(SRCD)E16G4_RPCHit.cc \
-         $(SRCD)E16G4_RPCSD.cc \
+         $(SRCD)E88G4_RPC.cc \
+         $(SRCD)E88G4_RPCHit.cc \
+         $(SRCD)E88G4_RPCSD.cc \
          $(SRCD)E16G4_MaterialList.cc \
          $(SRCD)E16G4_PhysicsList.cc \
          $(SRCD)E16G4_PrimaryGeneratorAction.cc \

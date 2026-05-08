@@ -52,8 +52,8 @@
 #include "E16G4_SSD.hh"
 #include "E16G4_SSDSD.hh"
 //sako
-#include "E16G4_RPC.hh"
-#include "E16G4_RPCSD.hh"
+#include "E88G4_RPC.hh"
+#include "E88G4_RPCSD.hh"
 
 #include "E16G4_Target.hh"
 #include "E16G4_TargetSD.hh"
@@ -624,9 +624,9 @@ G4VPhysicalVolume* E16G4_DetectorConstruction::Construct()
    // RPC volume, sako 2019/9/16
    // ==============================================================
 
-   E16G4_RPCSD* pRPCSD= new E16G4_RPCSD("rpc",geom);
+   E88G4_RPCSD* pRPCSD= new E88G4_RPCSD("rpc",geom);
    SDMan->AddNewDetector(pRPCSD);
-   E16G4_RPC *rpc[27];
+   E88G4_RPC *rpc[27];
    G4double dtheta_RPC=30.76*deg;
    for(G4int j=0; j<3; j++) {
       for(G4int i=0; i<9; i++) {
@@ -655,7 +655,7 @@ G4VPhysicalVolume* E16G4_DetectorConstruction::Construct()
          G4RotationMatrix *armRot= new G4RotationMatrix(geom->RPC(j+i*3)->GetRotationG4());
          armRot->invert();
 
-         rpc[j+i*3] = new E16G4_RPC(Name,RPCpos,armRot,j+i*3);
+         rpc[j+i*3] = new E88G4_RPC(Name,RPCpos,armRot,j+i*3);
          if(materialFlag==0){
             rpc[j+i*3]->SetMaterials(mList_->Vacuum,mList_->Vacuum,
                   mList_->Vacuum,mList_->Vacuum);

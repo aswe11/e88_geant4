@@ -1,7 +1,27 @@
-E16:E88_papers
-build/
-cmake-build-*/
+# Compiled Object files
+*.o
+*.so
+*.d
 
+# Root files
 *.root
-*.pdf
-*~
+
+# Logs and temporary files
+*.log
+core.*
+tmp/
+
+# Executables (RIKEN CCJ binaries)
+E16G4-yok.stat
+E16G4.vis-stat
+g4out2tree
+
+# Build directories
+build/
+obj/
+bin/
+lib/
+lib64/
+
+# OS specific files
+.DS_Store

@@ -173,7 +173,7 @@ void E16G4_Analysis::G4OutputDataRPCFill(G4HCofThisEvent* HCE){
             G4int ID = 0;
             G4int preID = 0;
             for(int i=0; i<nhits; i++){
-               E16G4_RPCHit *ghit = (*hc)[i];
+               E88G4_RPCHit *ghit = (*hc)[i];
                G4String pName = ghit->GetPName();
                G4String procName = ghit->GetcrProcName();
                preID = ID;

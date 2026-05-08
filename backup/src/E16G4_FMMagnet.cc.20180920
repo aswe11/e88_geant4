@@ -1,0 +1,292 @@
+//2016-08-12, uploaded by nakai
+//2015-03-27, uploaded by yokkaich
+//2015-01-05, modified by yokkaich
+//2015-01-05, modified by yokkaich
+//2014-08-27, modified by kawama
+//2014-08-27, modified by kawama
+//2014-04-30, modified by kawama
+//2013-11-14, modified by kawama
+//2013-05-13, modified by kawama
+ /*
+   E16G4_FMM.cc
+
+   D.Kawama
+   */
+
+#include <G4Material.hh>
+#include <G4Box.hh>
+#include <G4Tubs.hh>
+#include <G4Paraboloid.hh>
+#include <G4SubtractionSolid.hh>
+#include <G4LogicalVolume.hh>
+#include <G4PVPlacement.hh>
+#include <G4VisAttributes.hh>
+#include <G4Colour.hh>
+
+#include "E16G4_FMMagnet.hh"
+#include "E16ANA_MagneticFieldMap.hh"
+#include "E16ANA_ParamManager.hh"
+
+
+///////////////////////////////////////////////
+ E16G4_FMMagnet::E16G4_FMMagnet( const G4String &name,
+      const G4ThreeVector &gPos,
+      const G4RotationMatrix *rotMtx,
+      const std::string filename )
+: E16G4_BeamLineElement(name,gPos,rotMtx),
+   mMag_(0), mAir_(0),vSolid_(0)
+///////////////////////////////////////////////
+{
+      fmf = new   E16ANA_MagneticFieldMap3D(filename);
+      fmf->Initialize_binary();
+  //          double Bz=0;
+  //            fmf = new   E16ANA_MagneticFieldConstBz(Bz);
+
+}
+
+///////////////////////////////////////////////
+ E16G4_FMMagnet::E16G4_FMMagnet( const G4String &name,
+      const G4ThreeVector &gPos,
+      const G4RotationMatrix *rotMtx,
+      G4double Bz )
+: E16G4_BeamLineElement(name,gPos,rotMtx),
+   mMag_(0), mAir_(0),vSolid_(0)
+///////////////////////////////////////////////
+{
+   fmf = new   E16ANA_MagneticFieldConstBz(Bz/gauss);
+}
+
+
+/////////////////
+ E16G4_FMMagnet::~E16G4_FMMagnet()
+/////////////////
+{
+}
+
+////////////////////////////////////////////////////////
+bool E16G4_FMMagnet::IsInside( const G4ThreeVector &gPos ) const
+////////////////////////////////////////////////////////
+{
+   //G4ThreeVector lPos = GetLocalPosition(gPos);
+   if( vSolid_-> Inside(gPos) != kOutside ) return true;
+   else return false;
+}
+
+/////////////////////////////////////////////////////////////////////
+G4ThreeVector E16G4_FMMagnet::GetMagneticField( const G4ThreeVector &gPos ) const
+/////////////////////////////////////////////////////////////////////
+{
+  if( IsInside(gPos) ){
+  //G4cout <<"GetMagneticField"<<G4endl;
+    //G4ThreeVector lPos = GetLocalPosition(gPos);
+    return GetGlobalDirection( Field(gPos) );
+  }
+  else return G4ThreeVector();
+}
+
+///////////////////////////////////////////////////////////////
+G4ThreeVector E16G4_FMMagnet::Field( const G4ThreeVector &pos ) const
+//////////////////////////////////////////////////////////////
+{
+   E16ANA_ParamManager *paramMgr = E16ANA_ParamManager::GetParamManager();
+   int ipFlag=paramMgr->GetipFlag();
+   if (ipFlag<0){
+      ipFlag=0;
+      G4cout <<"Wrong ipFlag! I will do bylinear interpolation for FMField!"<<G4endl;
+   }
+   else if (ipFlag>1){
+      ipFlag=1;
+      G4cout <<"Wrong ipFlag! I will do bycubic interpolation for FMField!"<<G4endl;
+   }
+   double X[3];
+  double Bfield[3];
+  X[0] = pos.x()/cm;
+  X[1] = pos.y()/cm;
+  X[2] = pos.z()/cm;
+
+  if ( fmf->GetFieldValue(X,Bfield,ipFlag) ){
+    Bfield[0] *= gauss;
+    Bfield[1] *= gauss;
+    Bfield[2] *= gauss;
+  }
+  else {
+    Bfield[0] = Bfield[1] = Bfield[2] = 0;
+  }
+  
+  G4ThreeVector B( Bfield[0], Bfield[1], Bfield[2] );
+  return B;
+}
+
+
+//////////////////////////////////////////////////////////////
+void E16G4_FMMagnet::Place( G4LogicalVolume *pMother )
+//////////////////////////////////////////////////////////////
+{ 
+
+   G4RotationMatrix *zeRot= new G4RotationMatrix();
+   zeRot->rotateY(0.*degree); 
+   G4String nmYoke;
+   G4String nmPole;
+   G4String nmCoil;
+   nmPole=elemName_+"_Pole";
+   nmYoke=elemName_+"_Yoke";
+   nmCoil=elemName_+"_Coil";
+   
+   G4Box* solid= new G4Box("FMMagnet", 
+         600./2.*cm, 400./2.*cm, 250./2.*cm); 
+   DetLV_= new G4LogicalVolume(solid, mAir_, "FMMagnet LV");
+   //DetLV_-> SetVisAttributes(G4VisAttributes::GetInvisible());
+   
+   G4double dx_YokeTB=539.5*cm; 
+   G4double dy_YokeTB= 83.0*cm; 
+   G4double dz_YokeTB=212.0*cm; 
+   G4Box* solidYokeTB= new G4Box(nmYoke, 
+         dx_YokeTB/2., dy_YokeTB/2., dz_YokeTB/2.); 
+   G4LogicalVolume* LVYokeTB= new G4LogicalVolume(solidYokeTB, 
+         mMag_, nmYoke);
+   //G4VisAttributes *va= new G4VisAttributes(G4Color(0.,1.,1.));
+   G4VisAttributes *va= new G4VisAttributes(false);
+   LVYokeTB-> SetVisAttributes(va);
+   new G4PVPlacement
+      (zeRot, G4ThreeVector(-3.35*cm,203.5*cm,0.*cm), LVYokeTB, nmYoke, pMother, false, Id_);
+   new G4PVPlacement
+      (zeRot, G4ThreeVector(-3.35*cm,-203.5*cm,0.*cm), LVYokeTB, nmYoke, pMother, false, Id_);
+
+
+   G4Box* solidYokeRA= new G4Box(nmYoke, 
+         84.4/2.*cm, 324./2.*cm, 212.0/2.*cm); 
+   G4Box* solidYokeRB= new G4Box(nmYoke, 
+         50*cm, 324./2.*cm, 12.33*cm);
+   G4RotationMatrix *rot0 = new G4RotationMatrix();
+   rot0-> rotateY(-21.*degree);
+   G4DisplacedSolid *solidYokeRC = new G4DisplacedSolid(
+                      nmYoke, solidYokeRB, rot0,
+		  G4ThreeVector(84.4/2.*cm,0.*cm,106.*cm));
+   G4Box* solidYokeRD= new G4Box(nmYoke, 
+         50*cm, 324./2.*cm, 14.73*cm);
+   G4RotationMatrix *rot1 = new G4RotationMatrix();
+   rot1-> rotateY(47.74*degree);
+   G4DisplacedSolid *solidYokeRE = new G4DisplacedSolid(
+                      nmYoke, solidYokeRD, rot1,
+		  G4ThreeVector(84.4/2.*cm,0.*cm,-106.*cm));
+   G4SubtractionSolid* solidYokeR0=
+      new G4SubtractionSolid(nmYoke,solidYokeRA,solidYokeRC);
+   G4SubtractionSolid* solidYokeR1=
+      new G4SubtractionSolid(nmYoke,solidYokeR0,solidYokeRE);
+   G4LogicalVolume* LVYokeR= new G4LogicalVolume(solidYokeR1, 
+         mMag_, nmYoke);
+   LVYokeR-> SetVisAttributes(va);
+   new G4PVPlacement
+      (zeRot, G4ThreeVector(-237.2*cm,0.*cm,0.*cm), LVYokeR, nmYoke, pMother, false, Id_);
+
+   G4Box* solidYokeLA= new G4Box(nmYoke, 
+         91.1/2.*cm, 324./2.*cm, 212.0/2.*cm); 
+   G4Box* solidYokeLB= new G4Box(nmYoke, 
+         50*cm, 324./2.*cm, 14.05*cm);
+   G4RotationMatrix *rot2 = new G4RotationMatrix();
+   rot2-> rotateY(39.70*degree);
+   G4DisplacedSolid *solidYokeLC = new G4DisplacedSolid(
+                      nmYoke, solidYokeLB, rot2,
+		  G4ThreeVector(-84.4/2.*cm,0.*cm,106.*cm));
+   G4Box* solidYokeLD= new G4Box(nmYoke, 
+         50*cm, 324./2.*cm, 34.23*cm);
+   G4RotationMatrix *rot3 = new G4RotationMatrix();
+   rot3-> rotateY(-57.03*degree);
+   G4DisplacedSolid *solidYokeLE = new G4DisplacedSolid(
+                      nmYoke, solidYokeLD, rot3,
+		  G4ThreeVector(-84.4/2.*cm,0.*cm,-106.*cm));
+   G4SubtractionSolid* solidYokeL0=
+      new G4SubtractionSolid(nmYoke,solidYokeLA,solidYokeLC);
+   G4SubtractionSolid* solidYokeL1=
+      new G4SubtractionSolid(nmYoke,solidYokeL0,solidYokeLE);
+   G4LogicalVolume* LVYokeL= new G4LogicalVolume(solidYokeL1, 
+         mMag_, nmYoke);
+   LVYokeL-> SetVisAttributes(va);
+   new G4PVPlacement
+      (zeRot, G4ThreeVector(240.55*cm,0.*cm,0.*cm), LVYokeL, nmYoke, pMother, false, Id_);
+  
+   G4Tubs *solidPole0 = new G4Tubs(nmPole,0.*cm,106.*cm,40./2.*cm,0,2*3.14);
+   G4LogicalVolume* LVPole0= new G4LogicalVolume(solidPole0, 
+         mMag_, nmPole);
+   LVPole0-> SetVisAttributes(va);
+   G4RotationMatrix *rot4 = new G4RotationMatrix();
+   rot4-> rotateX(-90.0*degree);
+   new G4PVPlacement
+      (rot4, G4ThreeVector(0.*cm,142.*cm,0.*cm), LVPole0, 
+       nmPole, pMother, false, Id_);
+   new G4PVPlacement
+      (rot4, G4ThreeVector(0.*cm,-142.*cm,0.*cm), LVPole0, 
+       nmPole, pMother, false, Id_);
+   G4Tubs *solidPole1 = new G4Tubs(nmPole,0.*cm,88.*cm,30.6/2.*cm,0,2*3.14);
+   G4LogicalVolume* LVPole1= new G4LogicalVolume(solidPole1, 
+         mMag_, nmPole);
+   //va= new G4VisAttributes(G4Color(1.,0.5,0.));
+   LVPole1-> SetVisAttributes(va);
+   new G4PVPlacement
+      (rot4, G4ThreeVector(0.*cm,106.7*cm,0.*cm), LVPole1, 
+       nmPole, pMother, false, Id_);
+   new G4PVPlacement
+      (rot4, G4ThreeVector(0.*cm,-106.7*cm,0.*cm), LVPole1, 
+       nmPole, pMother, false, Id_);
+   G4Tubs *solidPole2 = new G4Tubs(nmPole,0.*cm,78.*cm,13.4/2.*cm,0,2*3.14);
+   G4LogicalVolume* LVPole2= new G4LogicalVolume(solidPole2, 
+         mMag_, nmPole);
+   LVPole2-> SetVisAttributes(va);
+   new G4PVPlacement
+      (rot4, G4ThreeVector(0.*cm,84.7*cm,0.*cm), LVPole2, 
+       nmPole, pMother, false, Id_);
+   new G4PVPlacement
+      (rot4, G4ThreeVector(0.*cm,-84.7*cm,0.*cm), LVPole2, 
+       nmPole, pMother, false, Id_);
+   G4Paraboloid *solidPole3 = 
+      new G4Paraboloid(nmPole,26./2.*cm,52.*cm,78.*cm);
+   G4LogicalVolume* LVPole3= new G4LogicalVolume(solidPole3, 
+         mMag_, nmPole);
+   LVPole3-> SetVisAttributes(va);
+   G4RotationMatrix *rot5 = new G4RotationMatrix();
+   rot5-> rotateX(90.0*degree);
+   new G4PVPlacement
+      (rot5, G4ThreeVector(0.*cm,65.*cm,0.*cm), LVPole3, 
+       nmPole, pMother, false, Id_);
+   new G4PVPlacement
+      (rot4, G4ThreeVector(0.*cm,-65.*cm,0.*cm), LVPole3, 
+       nmPole, pMother, false, Id_);
+   G4Tubs *solidPole4 = new G4Tubs(nmPole,0.*cm,42.*cm,10.0/2.*cm,0,2*3.14);
+   G4LogicalVolume* LVPole4= new G4LogicalVolume(solidPole4, 
+         mMag_, nmPole);
+   LVPole4-> SetVisAttributes(va);
+   new G4PVPlacement
+      (rot4, G4ThreeVector(0.*cm,47.0*cm,0.*cm), LVPole4, 
+       nmPole, pMother, false, Id_);
+   new G4PVPlacement
+      (rot4, G4ThreeVector(0.*cm,-47.0*cm,0.*cm), LVPole4, 
+       nmPole, pMother, false, Id_);
+   G4Paraboloid *solidPole5 = 
+      new G4Paraboloid(nmPole,22./2.*cm,20.*cm,42.*cm);
+   G4LogicalVolume* LVPole5= new G4LogicalVolume(solidPole5, 
+         mMag_, nmPole);
+   LVPole5-> SetVisAttributes(va);
+   new G4PVPlacement
+      (rot5, G4ThreeVector(0.*cm,31.*cm,0.*cm), LVPole5, 
+       nmPole, pMother, false, Id_);
+   new G4PVPlacement
+      (rot4, G4ThreeVector(0.*cm,-31.*cm,0.*cm), LVPole5, 
+       nmPole, pMother, false, Id_);
+   
+   G4Tubs *solidCoil = new G4Tubs(nmCoil,106.*cm,129.5*cm,30./2.*cm,0,2*3.14);
+   G4LogicalVolume* LVCoil= new G4LogicalVolume(solidCoil, 
+         mMag_, nmCoil);
+   //va= new G4VisAttributes(G4Color(1.,0.,0.));
+   //va= new G4VisAttributes(false);
+   LVCoil-> SetVisAttributes(va);
+   new G4PVPlacement
+      (rot5, G4ThreeVector(0.*cm,147.*cm,0.*cm), LVCoil, 
+       nmCoil, pMother, false, Id_);
+   new G4PVPlacement
+      (rot5, G4ThreeVector(0.*cm,-147.*cm,0.*cm), LVCoil, 
+       nmCoil, pMother, false, Id_);
+
+   vSolid_ = new G4DisplacedSolid("FM Field",solid,0,
+         G4ThreeVector(0.,0.,0.)) ;
+      
+}

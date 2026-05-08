@@ -1,0 +1,40 @@
+//2016-08-12, uploaded by nakai
+//2016-03-18, uploaded by nakai
+
+#ifndef E88G4_RPCSD_hh
+#define E88G4_RPCSD_hh
+
+#include <G4VSensitiveDetector.hh>
+
+#include "E88G4_RPCHit.hh"
+#include "E16ANA_GeometryV2.hh"
+
+class G4HCofThisEvent;
+class G4Step;
+class G4TouchableHistory;
+class E16G4_BeamLineElement;
+
+class E88G4_RPCSD : public G4VSensitiveDetector {
+public:
+   E88G4_RPCSD(const G4String &name, const E16ANA_GeometryV2 *geom);
+   ~E88G4_RPCSD();
+   G4bool ProcessHits(G4Step *astep, G4TouchableHistory *ROhist);
+   void Initialize(G4HCofThisEvent *HCTE);
+   void EndOfEvent(G4HCofThisEvent *HCTE);
+   void DrawAll();
+   void PrintAll();
+   void SetElement(int id, E16G4_BeamLineElement *elem);
+
+private:
+   enum{
+     //      n_rpc = 33
+      n_rpc = 81
+   };
+   RPCHitsCollection *hitsCollection[n_rpc];
+   E16G4_BeamLineElement *elem_[n_rpc];
+   const E16ANA_GeometryV2 *geom_;
+
+};
+
+#endif // E88G4_RPCSD_hh
+
