@@ -1,0 +1,90 @@
+//pi_wire.mac 
+//    Last modified at <2017-12-02 22:33:52 >
+//
+/control/verbose 2
+/tracking/verbose 0
+/event/verbose 0
+/run/verbose 2
+#/run/particle/verbose 0
+#/particle/process/verbose 0
+/process/verbose 0
+/control/suppressAbortion 0
+
+  
+/E16G4/gun/setRndmSeed 100002
+
+#Specify generation ID
+
+###GenID = 24 ... Particles will be generated from a wire target
+###(sigmaX will be ignored, the Gaussian sigma of Y distribution will be sigmaY, the radius will be sigmaZ)
+
+/E16G4/gun/setGenID 24
+
+/E16G4/gun/setSeedFile /work12/nakai/g4seed/pion_Pb/pion_30GeV-Pb-1401-000.dat
+#/E16G4/gun/setSeedFile ./input/pion_30gev-Cu-301-0.dat
+
+#Event offset for JAM evsnts
+/E16G4/gun/setEvOffset 0
+
+
+#XYZ-coordinate of generation point [cm]
+#Target 0
+#/E16G4/gun/setXPoint 0.0
+#/E16G4/gun/setYPoint 0.0
+#/E16G4/gun/setZPoint 0.0
+# "Tartget 1 - 4" are wire target positions
+#Target 1
+/E16G4/gun/setXPoint -2.5
+/E16G4/gun/setYPoint  0.0
+/E16G4/gun/setZPoint -4.0
+#Target 2
+#/E16G4/gun/setXPoint -2.5
+#/E16G4/gun/setYPoint  0.0
+#/E16G4/gun/setZPoint  4.0
+#Target 3
+#/E16G4/gun/setXPoint  2.5
+#/E16G4/gun/setYPoint  0.0
+#/E16G4/gun/setZPoint -4.0
+#Target 4
+#/E16G4/gun/setXPoint  2.5
+#/E16G4/gun/setYPoint  0.0
+#/E16G4/gun/setZPoint  4.0
+
+
+#Width of generation point in sigma [cm]
+/E16G4/gun/setSigmaX 0.15 
+/E16G4/gun/setSigmaY 0.17 
+#/E16G4/gun/setSigmaZ 0.004 
+# If GenID is 100 - 132 (wire target), the radius of the target will be sigmaZ.
+/E16G4/gun/setSigmaZ 0.005 
+
+/E16G4/det/setMaterialFlag 1 
+
+#Target material (Vacuum or Carbon or Copper or Lead)
+#Target1 : z=-2cm
+#Target2 : z=-1cm
+#Target3 : z= 0cm
+#Target4 : z= 1cm
+#Target5 : z= 2cm
+#/E16G4/det/setTarget1 Carbon 
+/E16G4/det/setTarget1 Copper
+/E16G4/det/setTarget2 Vacuum
+/E16G4/det/setTarget3 Copper
+/E16G4/det/setTarget4 Vacuum
+/E16G4/det/setTarget5 Copper
+/E16G4/det/setTarget6 SUS
+/E16G4/det/setTarget7 Eval
+/E16G4/det/setTargetThickness1 80
+/E16G4/det/setTargetThickness2 0
+/E16G4/det/setTargetThickness3 80
+/E16G4/det/setTargetThickness4 0
+/E16G4/det/setTargetThickness5 80
+/E16G4/det/setTargetThickness6 100
+/E16G4/det/setTargetThickness7 50
+
+#Output file name
+/E16G4/ana/setOutFile useless.g4d 
+
+/run/initialize
+/run/beamOn 1000
+

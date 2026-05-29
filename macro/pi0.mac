@@ -1,0 +1,43 @@
+//pi0.mac 
+//    Last modified at <2017-12-02 22:39:51 >
+//
+/tracking/verbose 0
+/tracking/storeTrajectory 1
+/event/verbose 0
+/run/verbose 2
+/process/verbose 0
+/control/suppressAbortion 0
+#
+/E16G4/gun/setRndmSeed 100000
+/E16G4/gun/setGenID 14
+#  14: JAM-event type  
+/E16G4/gun/setSeedFile pi0_30gev-Cu-1350-0.dat
+#
+/E16G4/gun/setEvOffset 0
+/E16G4/gun/setZPoint 0
+/E16G4/gun/setSigmaX 0.15
+/E16G4/gun/setSigmaY 0.17
+/E16G4/gun/setSigmaZ 0.004
+/E16G4/det/setMaterialFlag 1
+#
+/E16G4/det/setTarget1 Copper
+/E16G4/det/setTarget2 Vacuum
+/E16G4/det/setTarget3 Copper
+/E16G4/det/setTarget4 Vacuum
+/E16G4/det/setTarget5 Copper
+/E16G4/det/setTarget6 SUS
+/E16G4/det/setTarget7 Eval
+/E16G4/det/setTargetThickness1 80
+/E16G4/det/setTargetThickness2 0
+/E16G4/det/setTargetThickness3 80
+/E16G4/det/setTargetThickness4 0
+/E16G4/det/setTargetThickness5 80
+/E16G4/det/setTargetThickness6 100
+/E16G4/det/setTargetThickness7 50
+#
+/E16G4/ana/setOutFile useless.g4d
+
+/run/initialize
+/run/beamOn 100
+
+

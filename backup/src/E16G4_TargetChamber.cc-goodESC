@@ -1,0 +1,599 @@
+//2016-09-23, uploaded by yokkaich
+//2016-08-12, uploaded by nakai
+//2015-01-20, uploaded by yokkaich
+//2015-01-05, modified by yokkaich
+//2015-01-05, modified by yokkaich
+//2014-08-27, modified by kawama
+//2014-08-27, modified by kawama
+//2014-04-30, modified by kawama
+//2013-11-14, modified by kawama
+//2013-05-13, modified by kawama
+/*
+   E16G4_TargetChamber.cc
+
+   D.Kawama
+   */
+
+#include <G4Material.hh>
+#include <G4Box.hh>
+#include <G4Tubs.hh>
+#include <G4UnionSolid.hh>
+#include <G4SubtractionSolid.hh>
+#include <G4UnionSolid.hh>
+#include <G4LogicalVolume.hh>
+#include <G4PVPlacement.hh>
+
+#include <G4VisAttributes.hh>
+#include <G4Colour.hh>
+   
+#include "E16G4_TargetChamber.hh"
+#include "E16G4_Target.hh"
+
+using namespace std;
+
+///////////////////////////////////////////////
+ E16G4_TargetChamber::E16G4_TargetChamber( const G4String &name,
+      const G4ThreeVector &gPos,
+      const G4RotationMatrix *rotMtx,
+      int id )
+: E16G4_BeamLineElement(name,gPos,rotMtx),
+   mCFRP_(0),mMylar_(0), mGas_(0),mTar1_(0),mTar2_(0),mTar3_(0),   
+   DetLV_(0), vSolid_(0), Id_(id)
+///////////////////////////////////////////////
+{
+}
+
+/////////////////
+ E16G4_TargetChamber::~E16G4_TargetChamber()
+/////////////////
+{
+}
+
+////////////////////////////////////////////////////////
+bool E16G4_TargetChamber::IsInside( const G4ThreeVector &gPos ) const
+////////////////////////////////////////////////////////
+{
+   G4ThreeVector lPos = GetLocalPosition(gPos);
+   if( vSolid_-> Inside(lPos) != kOutside ) return true;
+   else return false;
+}
+
+//////////////////////////////////////////////////////////////
+G4VPhysicalVolume *E16G4_TargetChamber::Place( G4LogicalVolume *pMother )
+//////////////////////////////////////////////////////////////
+{ 
+  //by Kawama, Box-like Target Chamber
+G4VisAttributes *vaGas= new G4VisAttributes(G4Color(1.,1.,0.));
+G4VisAttributes *vaCham= new G4VisAttributes(G4Color(.5,.5,.5));
+   G4double boxsize=25.*cm;
+   G4double tmylar=25*um;
+   G4RotationMatrix *zeRot= new G4RotationMatrix();
+   zeRot->rotateY(0.*degree); 
+   std::ostringstream id;
+   id<<Id_;
+
+   // target chamber x-size 106 mm -> 160 mm (by nakai)
+    //G4double GasAx=106*mm;
+    G4double GasAx=160*mm;
+    G4double GasAy=400*mm;
+    G4double GasAz=(167.5+224)*mm-100*um;
+   G4String nmgas=G4String("TargetChamber_Gas")+id.str().c_str();;
+   G4Box* gasSolid1= new G4Box(nmgas, 
+         GasAx/2., 
+         GasAy/2., 
+         GasAz/2.);
+   gasLV_= new G4LogicalVolume(gasSolid1, mGas_, nmgas);
+   gasLV_-> SetVisAttributes(vaGas);
+
+   G4double gascenter=(167.5*mm-224*mm)/2.; // = -28.25mm
+   gascenter_ = gascenter;
+
+   tar1_ = PlaceTarget(0, -2.0*cm, tthick1_, mTar1_);
+   tar2_ = PlaceTarget(1, -1.0*cm, tthick2_, mTar2_);
+   tar3_ = PlaceTarget(2,  0.0*cm, tthick3_, mTar3_);
+   tar4_ = PlaceTarget(3,  1.0*cm, tthick4_, mTar4_);
+   tar5_ = PlaceTarget(4,  2.0*cm, tthick5_, mTar5_);
+#if 0
+   tar6_ = PlaceTarget(5, -23.4*cm-gascenter, 100.0*um, mSUS_);
+   tar7_ = PlaceTarget(6, -22.4*cm-gascenter,  50.0*um, mMylar_);
+#else
+   tar6_ = PlaceTarget(5, -23.4*cm-gascenter, tthick6_, mTar6_);
+   tar7_ = PlaceTarget(6, -22.4*cm-gascenter, tthick7_, mTar7_);
+#endif
+   //-234-(-28.25)=205.75mm
+
+   /*
+   G4ThreeVector tarpos1(0.*cm,0.*cm,-1.*cm-gascenter); 
+   tar1_ = new E16G4_Target("Target0",tarpos1, zeRot, 0);
+   tar1_->SetThickness(tthick1_);//in um
+   //G4cout <<"tthick1_/um="<<tthick1_/um<<G4endl;
+   tar1_->SetMaterials(mTar1_);
+   tar1_->Place(gasLV_);
+   G4ThreeVector tarpos2(0.*cm,0.*cm,0.*cm-gascenter); 
+   tar2_ = new E16G4_Target("Target1",tarpos2, zeRot, 1);
+   G4cout <<"tthick2_/um="<<tthick2_/um<<G4endl;
+   tar2_->SetThickness(tthick2_);//in um
+   tar2_->SetMaterials(mTar2_);
+   tar2_->Place(gasLV_);
+   G4ThreeVector tarpos3(0.*cm,0.*cm,1.*cm-gascenter); 
+   tar3_ = new E16G4_Target("Target2",tarpos3, zeRot, 2);
+   tar3_->SetThickness(tthick3_);//in um
+   tar3_->SetMaterials(mTar3_);
+   tar3_->Place(gasLV_);
+   G4ThreeVector tarpos4(0.*cm,0.*cm,(-22.4-1)*cm-gascenter); 
+   tar4_ = new E16G4_Target("Target3",tarpos4, zeRot, 3);
+   tar4_->SetThickness(100*um);//in um
+   tar4_->SetMaterials(mSUS_);
+   tar4_->Place(pMother);
+   */
+
+   posGas1_.set(0*mm,0*mm,gascenter);
+   posGas1_+=gPos_;
+   G4VPhysicalVolume *gas = new G4PVPlacement
+      (&rotMtx_, posGas1_, gasLV_, 
+       nmgas, pMother, false, 0);
+   // Beam pipe ? (by nakai)
+   G4double GasLongx=106*mm;
+    G4double GasLongy=106*mm;
+    G4double GasLongz=980*mm;
+   G4Box* gasSolid2= new G4Box(nmgas, 
+         GasLongx/2., 
+         GasLongy/2., 
+         GasLongz/2.);
+   G4LogicalVolume* gas2LV= new G4LogicalVolume(gasSolid2, mGas_, nmgas);
+   gas2LV-> SetVisAttributes(vaGas);
+   G4ThreeVector posGas2(0*mm,0*mm,(170+980/2.)*mm);
+   posGas2+=gPos_;
+   new G4PVPlacement
+      (&rotMtx_, posGas2, gas2LV, 
+       nmgas, pMother, false, 0);
+  
+   // Mylar of Center Part, side
+    G4String nmMylar=G4String("TargetChamber_Mylar")+id.str().c_str();;
+   
+    G4double MylarAx=50*um;
+    G4double MylarAy=400*mm;
+    G4double MylarAz=(167.5+224)*mm;
+    G4Box* MylarA= new G4Box(nmMylar, MylarAx/2., MylarAy/2., MylarAz/2.);
+   G4LogicalVolume* Mylar1LV= new G4LogicalVolume(MylarA, mMylar_, nmMylar);
+   G4LogicalVolume* Mylar2LV= new G4LogicalVolume(MylarA, mMylar_, nmMylar);
+   Mylar1LV->SetVisAttributes(vaCham); 
+   Mylar2LV->SetVisAttributes(vaCham); 
+   //G4ThreeVector posMylar1(56*mm,0*mm,(167.5*mm-224*mm)/2.);
+   //G4ThreeVector posMylar2(-(56*mm),0*mm,(167.5*mm-224*mm)/2.);
+   // side mylar 56 mm -> 80 mm (by nakai)
+   G4ThreeVector posMylar1(GasAx/2.0+3.0*mm,0*mm,(167.5*mm-224*mm)/2.);
+   G4ThreeVector posMylar2(-(GasAx/2.0+3.0*mm),0*mm,(167.5*mm-224*mm)/2.);
+   posMylar1+=gPos_;
+   new G4PVPlacement
+      (&rotMtx_, posMylar1, Mylar1LV, 
+       nmMylar, pMother, false, 0);
+   posMylar2+=gPos_;
+   new G4PVPlacement
+      (&rotMtx_, posMylar2, Mylar2LV, 
+       nmMylar, pMother, false, 0);
+   // Mylar of Center Part, downstream 
+    //G4double MylarBx=106*mm;
+    //G4double MylarBy=150*mm;
+    G4double MylarBx=GasAx;
+    G4double MylarBy=GasAy;
+    G4double MylarBz=50*um;
+    //G4Box* MylarB= new G4Box(nmMylar, MylarBx/2., MylarBy/2., MylarBz/2.);
+    G4Box* MylarB1= new G4Box(nmMylar, MylarBx/2., MylarBy/2., MylarBz/2.);
+    G4Box* MylarB2= new G4Box(nmMylar, GasLongx/2., GasLongy/2., MylarBz/2.+100.0*um);
+    G4SubtractionSolid *MylarB = new G4SubtractionSolid(nmMylar, MylarB1, MylarB2);
+   G4LogicalVolume* Mylar3LV= new G4LogicalVolume(MylarB, mMylar_, nmMylar);
+   //G4LogicalVolume* Mylar4LV= new G4LogicalVolume(MylarB, mMylar_, nmMylar);
+   Mylar3LV->SetVisAttributes(vaCham); 
+   //Mylar4LV->SetVisAttributes(vaCham); 
+   G4ThreeVector posMylar3(0*mm,0*mm,170*mm);
+   //G4ThreeVector posMylar3(0*mm,125*mm,170*mm);
+   //G4ThreeVector posMylar4(0*mm,-125*mm,170*mm);
+   posMylar3+=gPos_;
+   new G4PVPlacement
+      (&rotMtx_, posMylar3, Mylar3LV, 
+       nmMylar, pMother, false, 0);
+   //posMylar4+=gPos_;
+   //new G4PVPlacement
+   //   (&rotMtx_, posMylar4, Mylar4LV, 
+   //    nmMylar, pMother, false, 0);
+   // Mylar of Center Part, upstream 
+    //G4double MylarCx=106*mm;
+    //G4double MylarCy=400*mm;
+    G4double MylarCx=GasAx;
+    G4double MylarCy=GasAy;
+    G4double MylarCz=50*um;
+    G4Box* MylarC= new G4Box(nmMylar, MylarCx/2., MylarCy/2., MylarCz/2.);
+   G4LogicalVolume* Mylar5LV= new G4LogicalVolume(MylarC, mMylar_, nmMylar);
+   Mylar5LV->SetVisAttributes(vaCham); 
+   G4ThreeVector posMylar5(0*mm,0*mm,-224*mm);
+   posMylar5+=gPos_;
+   new G4PVPlacement
+      (&rotMtx_, posMylar5, Mylar5LV, 
+       nmMylar, pMother, false, 0);
+   // Mylar of downstream Part, top and bottom of beam pipe ? (by nakai) 
+    G4double MylarDx=106*mm-1*mm;
+    G4double MylarDy=50*um;
+    G4double MylarDz=980*mm;
+    G4Box* MylarD= new G4Box(nmMylar, MylarDx/2., MylarDy/2., MylarDz/2.);
+   G4LogicalVolume* Mylar7LV= new G4LogicalVolume(MylarD, mMylar_, nmMylar);
+   G4LogicalVolume* Mylar8LV= new G4LogicalVolume(MylarD, mMylar_, nmMylar);
+   Mylar7LV->SetVisAttributes(vaCham); 
+   Mylar8LV->SetVisAttributes(vaCham); 
+   G4ThreeVector posMylar7(0*mm,106*mm/2.-25*um,170*mm+980/2.*mm);
+   G4ThreeVector posMylar8(0*mm,-106*mm/2.+25*um,170*mm+980/2.*mm);
+   posMylar7+=gPos_;
+   new G4PVPlacement
+      (&rotMtx_, posMylar7, Mylar7LV, 
+       nmMylar, pMother, false, 0);
+   posMylar8+=gPos_;
+   new G4PVPlacement
+      (&rotMtx_, posMylar8, Mylar8LV, 
+       nmMylar, pMother, false, 0);
+   // Mylar of downstream Part, side of beam pipe ? (by nakai) 
+    G4double MylarEx=50*um;
+    G4double MylarEy=106*mm-1*mm;
+    G4double MylarEz=980*mm;
+    G4Box* MylarE= new G4Box(nmMylar, MylarEx/2., MylarEy/2., MylarEz/2.);
+   G4LogicalVolume* Mylar9LV= new G4LogicalVolume(MylarE, mMylar_, nmMylar);
+   G4LogicalVolume* Mylar10LV= new G4LogicalVolume(MylarE, mMylar_, nmMylar);
+   Mylar9LV->SetVisAttributes(vaCham); 
+   Mylar10LV->SetVisAttributes(vaCham); 
+   G4ThreeVector posMylar9(106*mm/2.-25*um,0.*mm,170*mm+980/2.*mm);
+   G4ThreeVector posMylar10(-106*mm/2.+25*um,0.*mm,170*mm+980/2.*mm);
+   posMylar9+=gPos_;
+   new G4PVPlacement
+      (&rotMtx_, posMylar9, Mylar9LV, 
+       nmMylar, pMother, false, 0);
+   posMylar10+=gPos_;
+   new G4PVPlacement
+      (&rotMtx_, posMylar10, Mylar10LV, 
+       nmMylar, pMother, false, 0);
+   
+   
+   
+   // Frame of Center Part
+    G4String nmCFRP=G4String("TargetChamber_Frame")+id.str().c_str();
+   
+    G4double FrameUP1x=3*mm;
+    G4double FrameUP1y=400*mm;
+    G4double FrameUP1z=2*mm;
+    G4Box* FrameUP1= new G4Box(nmCFRP, FrameUP1x/2., FrameUP1y/2., FrameUP1z/2.);
+   G4LogicalVolume* FrameUP1LV= new G4LogicalVolume(FrameUP1, mCFRP_, nmCFRP);
+   G4LogicalVolume* FrameUP2LV= new G4LogicalVolume(FrameUP1, mCFRP_, nmCFRP);
+   FrameUP1LV->SetVisAttributes(vaCham); 
+   FrameUP2LV->SetVisAttributes(vaCham); 
+   //G4ThreeVector posFrameUP1(56*mm,0*mm,170*mm-FrameUP1z/2.);
+   //G4ThreeVector posFrameUP2(-(56*mm),0*mm,170*mm-FrameUP1z/2.);
+   G4ThreeVector posFrameUP1(GasAx/2.0+3.0*mm,0*mm,170*mm-FrameUP1z/2.);
+   G4ThreeVector posFrameUP2(-(GasAx/2.0+3.0*mm),0*mm,170*mm-FrameUP1z/2.);
+   posFrameUP1+=gPos_;
+   new G4PVPlacement
+      (&rotMtx_, posFrameUP1, FrameUP1LV, 
+       nmCFRP, pMother, false, 0);
+   posFrameUP2+=gPos_;
+   new G4PVPlacement
+      (&rotMtx_, posFrameUP2, FrameUP2LV, 
+       nmCFRP, pMother, false, 0);
+    
+   G4double FrameUP2x=2*mm;
+    G4double FrameUP2y=400*mm;
+    G4double FrameUP2z=5*mm;
+    G4Box* FrameUP2= new G4Box(nmCFRP, FrameUP2x/2., FrameUP2y/2., FrameUP2z/2.);
+   G4LogicalVolume* FrameUP3LV= new G4LogicalVolume(FrameUP2, mCFRP_, nmCFRP);
+   G4LogicalVolume* FrameUP4LV= new G4LogicalVolume(FrameUP2, mCFRP_, nmCFRP);
+   FrameUP3LV->SetVisAttributes(vaCham); 
+   FrameUP4LV->SetVisAttributes(vaCham); 
+   //G4ThreeVector posFrameUP3(59*mm,
+   G4ThreeVector posFrameUP3(GasAx/2.0+6.0*mm,
+         0*mm,
+         170*mm-FrameUP2z/2.);
+   //G4ThreeVector posFrameUP4(-(59*mm),
+   G4ThreeVector posFrameUP4(-(GasAx/2.0+6.0*mm),
+         0*mm,
+         170*mm-FrameUP2z/2.);
+   posFrameUP3+=gPos_;
+   new G4PVPlacement
+      (&rotMtx_, posFrameUP3, FrameUP3LV, 
+       nmCFRP, pMother, false, 0);
+   posFrameUP4+=gPos_;
+   new G4PVPlacement
+      (&rotMtx_, posFrameUP4, FrameUP4LV, 
+       nmCFRP, pMother, false, 0);
+   
+   //G4double FrameUP3x=106*mm;
+   G4double FrameUP3x=GasAx;
+    G4double FrameUP3y=2*mm;
+    G4double FrameUP3z=2*mm;
+    G4Box* FrameUP3= new G4Box(nmCFRP, FrameUP3x/2., FrameUP3y/2., FrameUP3z/2.);
+   G4LogicalVolume* FrameUP5LV= new G4LogicalVolume(FrameUP3, mCFRP_, nmCFRP);
+   G4LogicalVolume* FrameUP6LV= new G4LogicalVolume(FrameUP3, mCFRP_, nmCFRP);
+   FrameUP5LV->SetVisAttributes(vaCham); 
+   FrameUP6LV->SetVisAttributes(vaCham); 
+   G4ThreeVector posFrameUP5(0*mm,(50-1)*mm,
+         170*mm-FrameUP3z/2.);
+   G4ThreeVector posFrameUP6(0*mm,-(50-1)*mm,
+         170*mm-FrameUP3z/2.);
+   posFrameUP5+=gPos_;
+   new G4PVPlacement
+      (&rotMtx_, posFrameUP5, FrameUP5LV, 
+       nmCFRP, pMother, false, 0);
+   posFrameUP6+=gPos_;
+   new G4PVPlacement
+      (&rotMtx_, posFrameUP6, FrameUP6LV, 
+       nmCFRP, pMother, false, 0);
+   
+   //Frame of downstream
+    G4double FrameLong1x=5*mm;
+    G4double FrameLong1y=3*mm;
+    G4double FrameLong1z=980*mm;
+    G4Box* FrameLong= new G4Box(nmCFRP, FrameLong1x/2., FrameLong1y/2., FrameLong1z/2.);
+   G4LogicalVolume* FrameLong1LV= new G4LogicalVolume(FrameLong, mCFRP_, nmCFRP);
+   G4LogicalVolume* FrameLong2LV= new G4LogicalVolume(FrameLong, mCFRP_, nmCFRP);
+   G4LogicalVolume* FrameLong3LV= new G4LogicalVolume(FrameLong, mCFRP_, nmCFRP);
+   G4LogicalVolume* FrameLong4LV= new G4LogicalVolume(FrameLong, mCFRP_, nmCFRP);
+   FrameLong1LV->SetVisAttributes(vaCham); 
+   FrameLong2LV->SetVisAttributes(vaCham); 
+   FrameLong3LV->SetVisAttributes(vaCham); 
+   FrameLong4LV->SetVisAttributes(vaCham); 
+   //posFrameAlBase*=(*rot);
+   G4ThreeVector posFrameLong1(53*mm-FrameLong1x/2.,
+         53*mm+FrameLong1y/2.,
+         170*mm+FrameLong1z/2.);
+   G4ThreeVector posFrameLong2(-(53*mm-FrameLong1x/2.),
+         53*mm+FrameLong1y/2.,
+         170*mm+FrameLong1z/2.);
+   G4ThreeVector posFrameLong3((53*mm-FrameLong1x/2.),
+         -(53*mm+FrameLong1y/2.),
+         170*mm+FrameLong1z/2.);
+   G4ThreeVector posFrameLong4(-(53*mm-FrameLong1x/2.),
+         -(53*mm+FrameLong1y/2.),
+         170*mm+FrameLong1z/2.);
+   posFrameLong1+=gPos_;
+   new G4PVPlacement
+      (&rotMtx_, posFrameLong1, FrameLong1LV, 
+       nmCFRP, pMother, false, 0);
+   posFrameLong2+=gPos_;
+   new G4PVPlacement
+      (&rotMtx_, posFrameLong2, FrameLong2LV, 
+       nmCFRP, pMother, false, 0);
+   posFrameLong3+=gPos_;
+   new G4PVPlacement
+      (&rotMtx_, posFrameLong3, FrameLong3LV, 
+       nmCFRP, pMother, false, 0);
+   posFrameLong4+=gPos_;
+   new G4PVPlacement
+      (&rotMtx_, posFrameLong4, FrameLong4LV, 
+       nmCFRP, pMother, false, 0);
+    
+   G4double FrameDown1x=140*mm;
+    G4double FrameDown1y=3*mm;
+    G4double FrameDown1z=20*mm;
+    G4Box* FrameDown1= new G4Box(nmCFRP, FrameDown1x/2., FrameDown1y/2., FrameDown1z/2.);
+   G4LogicalVolume* FrameDown1LV= new G4LogicalVolume(FrameDown1, mCFRP_, nmCFRP);
+   G4LogicalVolume* FrameDown2LV= new G4LogicalVolume(FrameDown1, mCFRP_, nmCFRP);
+   G4LogicalVolume* FrameDown3LV= new G4LogicalVolume(FrameDown1, mCFRP_, nmCFRP);
+   G4LogicalVolume* FrameDown4LV= new G4LogicalVolume(FrameDown1, mCFRP_, nmCFRP);
+   FrameDown1LV->SetVisAttributes(vaCham); 
+   FrameDown2LV->SetVisAttributes(vaCham); 
+   FrameDown3LV->SetVisAttributes(vaCham); 
+   FrameDown4LV->SetVisAttributes(vaCham); 
+   G4ThreeVector posFrameDown1(0*mm,
+         53*mm+FrameDown1y/2.,
+         170*mm+1000*mm-FrameDown1z/2.);
+   G4ThreeVector posFrameDown2(0*mm,
+         -(53*mm+FrameDown1y/2.),
+         170*mm+1000*mm-FrameDown1z/2.);
+   G4ThreeVector posFrameDown3((FrameDown1x/2.),
+         0.*mm,
+         170*mm+1000*mm-FrameDown1z/2.);
+   G4ThreeVector posFrameDown4(-(FrameDown1x/2.),
+         0*mm,
+         170*mm+1000*mm-FrameDown1z/2.);
+   posFrameDown1+=gPos_;
+   G4RotationMatrix *rotZ90=new G4RotationMatrix();
+   rotZ90->rotateZ(90*deg);
+   new G4PVPlacement
+      (&rotMtx_, posFrameDown1, FrameDown1LV, 
+       nmCFRP, pMother, false, 0);
+   posFrameDown2+=gPos_;
+   new G4PVPlacement
+      (&rotMtx_, posFrameDown2, FrameDown2LV, 
+       nmCFRP, pMother, false, 0);
+   posFrameDown3+=gPos_;
+   new G4PVPlacement
+      (rotZ90, posFrameDown3, FrameDown3LV, 
+       nmCFRP, pMother, false, 0);
+   posFrameDown4+=gPos_;
+   new G4PVPlacement
+      (rotZ90, posFrameDown4, FrameDown4LV, 
+       nmCFRP, pMother, false, 0);
+
+   
+   return gas;
+
+}
+
+//////////////////////////////////////////////////////////////
+G4VPhysicalVolume *E16G4_TargetChamber::Place2( G4LogicalVolume *pMother )
+//////////////////////////////////////////////////////////////
+{
+  //  cerr<<"TargetChamber 2"<<endl;
+  //by Nakai, SSD + Cylindrical Target Chamber
+   G4VisAttributes *vaGas= new G4VisAttributes(G4Color(1.,1.,0.));
+   G4VisAttributes *vaCham= new G4VisAttributes(G4Color(.5,.5,.5));
+   G4double boxsize=25.*cm;
+   G4double tmylar=25*um;
+   G4RotationMatrix *zeRot= new G4RotationMatrix();
+   zeRot->rotateY(0.*degree); 
+   std::ostringstream id;
+   id<<Id_;
+
+   // cylindrical target chamber
+   //G4double GasAx=160*mm;
+   G4double GasAy=400*mm;
+   //G4double GasAz=(167.5+224)*mm-100*um;
+   G4double GasRadius = 160.0*mm;
+   G4String nmgas=G4String("TargetChamber_Gas")+id.str().c_str();;
+   G4Tubs* gasSolid1 = new G4Tubs(nmgas,
+         0.0*mm,     // inner raidus
+         GasRadius,  // outer raidus
+         GasAy/2.,   // half z
+         0.0*deg,    // start angle
+         360.0*deg); // spanning angle
+   // Beam pipe ? (by nakai)
+   //def sako
+   /*
+   G4double GasLongx   =  106.0*mm;
+   G4double GasLongy   =  106.0*mm;
+   */
+   //sako 2019/04/18 z = 800mm
+   /*
+   G4double GasLongx   =  401.0*mm;
+   G4double GasLongy   =  401.0*mm;
+   //G4double GasLongz1 = -235.0*mm;
+   G4double GasLongz1  =  140.0*mm;
+   G4double GasLongz2  = 1150.0*mm;//sako, center = (GasLongz1+GasLongz2)/2=645*mm, z of start couner = 400*mm
+   G4double GasShortz1 = -240.0*mm;
+   G4double GasShortz2 = -140.0*mm;
+*/
+   //sako 2020/01/19 z = 1076, dx = 577
+   /*
+   G4double GasLongx   =  578.0*mm;
+   G4double GasLongy   =  578.0*mm;
+   G4double GasLongz1  =  140.0*mm;
+   G4double GasLongz2  = 1150.0*mm;//sako, center = (GasLongz1+GasLongz2)/2=645*mm, z of start couner = 400*mm
+   G4double GasShortz1 = -240.0*mm;
+   G4double GasShortz2 = -140.0*mm;
+   */
+
+   //sako 2020/03/28 z = 1678.65, dx = 577
+   /*
+   G4double GasLongx   =  578.0*mm;
+   G4double GasLongy   =  578.0*mm;
+   G4double GasLongz1  =  140.0*mm;
+   G4double GasLongz2  = 1700.0*mm;//sako
+   G4double GasShortz1 = -240.0*mm;
+   G4double GasShortz2 = -140.0*mm;
+   */
+   //sako 2020/03/29 z = 1602.61, dx = 858.8
+   G4double GasLongx   =  106.0*mm;
+   G4double GasLongy   =  106.0*mm;
+   G4double GasLongx2  =  859.0*mm;
+   G4double GasLongy2  =  859.0*mm;
+   //   G4double GasLongz1  =  700.0*mm;//def 140
+   G4double GasLongz1  = 1550.0*mm;//def 140
+   G4double GasLongz2  = 1700.0*mm;//sako
+   G4double GasShortz1 = -240.0*mm;
+   G4double GasShortz2 = -140.0*mm;
+   //def
+
+
+   G4Box* gasSolid2 = new G4Box(nmgas, 
+         GasLongx/2., 
+         GasLongy/2., 
+         (GasLongz2-GasLongz1)/2.);
+   /*
+   G4Box* gasSolid2 = new G4Box(nmgas, 
+         GasLongx2/2., 
+         GasLongy2/2., 
+         (GasLongz2-GasLongz1)/2.);
+   */
+   //def
+   /*
+   G4Box* gasSolid3 = new G4Box(nmgas, 
+         GasLongx/2., 
+         GasLongy/2., 
+         (GasShortz2-GasShortz1)/2.);
+   */
+   G4Box* gasSolid3 = new G4Box(nmgas, 
+         GasLongx2/2., 
+         GasLongy2/2., 
+         (GasShortz2-GasShortz1)/2.);
+   // gasSolid = gasSolid1 + gasSolid2
+   //G4UnionSolid *gasSolid = new G4UnionSolid(nmgas,
+   //      gasSolid1, gasSolid2,
+   //      zeRot, G4ThreeVector(0.*mm, 0.*mm, (GasLongz1+GasLongz2)/2.0));
+   //G4double gascenter = 0.0*mm;
+   G4RotationMatrix *xRot = new G4RotationMatrix();
+   xRot->rotateX(90.0*degree);
+   G4UnionSolid *gasSolid4 = new G4UnionSolid(nmgas,
+         gasSolid2, gasSolid1,
+         xRot, G4ThreeVector(0.*mm, 0.*mm, -(GasLongz1+GasLongz2)/2.0));
+   G4UnionSolid *gasSolid = new G4UnionSolid(nmgas,
+         gasSolid4, gasSolid3,
+         zeRot, G4ThreeVector(0.*mm, 0.*mm, (GasShortz1+GasShortz2)/2.0-(GasLongz1+GasLongz2)/2.0));
+   G4double gascenter = (GasLongz1+GasLongz2)/2.0;
+   gascenter_ = gascenter;
+   posGas1_.set(0*mm,0*mm,gascenter);
+   posGas1_+=gPos_;
+
+   gasLV_= new G4LogicalVolume(gasSolid, mGas_, nmgas);
+
+   //gasLV_-> SetVisAttributes(vaGas);
+   gasLV_-> SetVisAttributes(new G4VisAttributes(false));
+
+   tar1_ = PlaceTarget(0, -2.0*cm, tthick1_, mTar1_);
+   tar2_ = PlaceTarget(1, -1.0*cm, tthick2_, mTar2_);
+   tar3_ = PlaceTarget(2,  0.0*cm, tthick3_, mTar3_);
+   tar4_ = PlaceTarget(3,  1.0*cm, tthick4_, mTar4_);
+   tar5_ = PlaceTarget(4,  2.0*cm, tthick5_, mTar5_);
+
+   G4double offset = (167.5*mm-224*mm)/2.;
+#if 0
+   tar6_ = PlaceTarget(5, -23.4*cm-offset, 100.0*um, mSUS_);
+   tar7_ = PlaceTarget(6, -22.4*cm-offset,  50.0*um, mMylar_);
+#else
+   tar6_ = PlaceTarget(5, -23.4*cm-offset, tthick6_, mTar6_);
+   tar7_ = PlaceTarget(6, -22.4*cm-offset, tthick7_, mTar7_);
+#endif
+
+   G4VPhysicalVolume *gas = new G4PVPlacement
+      (&rotMtx_, posGas1_, gasLV_, 
+       nmgas, pMother, false, 0);
+
+   // Mylar
+   G4double mylarThickness = 50.0*um;
+   //G4double mylarThickness = 1.0*mm;
+   G4String nmMylar=G4String("TargetChamber_Mylar")+id.str().c_str();;
+   G4Tubs *mylarCylinder = new G4Tubs(nmMylar,
+         GasRadius,     // inner raidus
+         //GasRadius+mylarThickness,     // inner raidus
+         GasRadius+mylarThickness,  // outer raidus
+         //GasRadius+mylarThickness*2.0,  // outer raidus
+         GasAy/2.,   // half z
+         0.0*deg,    // start angle
+         360.0*deg); // spanning angle
+   G4Box *mylarWindow = new G4Box(nmMylar, GasLongx/2.0, GasLongy/2.0, GasRadius+1.0*mm);
+   G4SubtractionSolid *mylarSolid = new G4SubtractionSolid(nmMylar, mylarCylinder, mylarWindow);
+   G4LogicalVolume* mylarLV= new G4LogicalVolume(mylarSolid, mMylar_, nmMylar);
+   //mylarLV->SetVisAttributes(vaCham); 
+   mylarLV->SetVisAttributes(new G4VisAttributes(false)); 
+   //G4ThreeVector posMylar = posGas1_;
+   G4ThreeVector posMylar(0,0,0);
+   G4RotationMatrix rotMylar;
+   rotMylar.rotateX(90.0*deg);
+   //rotMylar = rotMtx_*rotMylar;
+   rotMylar = rotMylar*rotMtx_;
+   new G4PVPlacement
+      (&rotMylar, posMylar, mylarLV, 
+       nmMylar, pMother, false, 0);
+
+   return gas;
+
+}
+
+E16G4_Target* E16G4_TargetChamber::PlaceTarget(int target_id, G4double pos_z, G4double tthick, G4Material *mTar){
+   G4RotationMatrix *zeRot= new G4RotationMatrix();
+   std::ostringstream id_sstream;
+   id_sstream << target_id;
+   G4String name = G4String("Target")+id_sstream.str();
+   G4ThreeVector tarpos(0.*cm,0.*cm,pos_z-gascenter_);
+   E16G4_Target *tar = new E16G4_Target(name, tarpos, zeRot, target_id);
+   tar->SetThickness(tthick);//in um
+   //G4cout <<"tthick1_/um="<<tthick1_/um<<G4endl;
+   tar->SetMaterials(mTar);
+   tar->Place(gasLV_);
+   return tar;
+}
+

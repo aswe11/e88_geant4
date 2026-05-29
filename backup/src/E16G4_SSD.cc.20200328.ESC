@@ -1,0 +1,146 @@
+//2016-12-18, uploaded by yokkaich
+//2016-08-12, uploaded by nakai
+
+#include <G4VisAttributes.hh>
+#include <G4Material.hh>
+#include <G4Box.hh>
+#include <G4SubtractionSolid.hh>
+
+#include <G4LogicalVolume.hh>
+#include <G4VPhysicalVolume.hh>
+#include <G4PVPlacement.hh>
+
+#include "E16G4_SSD.hh"
+
+E16G4_SSD::E16G4_SSD(const G4String &name, const G4ThreeVector &gPos, const G4RotationMatrix *rotMtx, int id) : 
+   E16G4_BeamLineElement(name, gPos, rotMtx),
+   mSi_(0), // materials
+   detLV_(0), // logical volumes
+   mPCB_(0),
+   pcbLV_(0),
+   id_(id)
+{
+}
+
+E16G4_SSD::~E16G4_SSD(){
+}
+
+bool E16G4_SSD::IsInside(const G4ThreeVector &gPos) const {
+   G4ThreeVector lPos = GetLocalPosition(gPos);
+   if(vSolid_->Inside(lPos) != kOutside) return true;
+   else return false;
+}
+
+G4VPhysicalVolume* E16G4_SSD::Place(G4LogicalVolume *pMother){
+   // place PCB, support frame etc...
+  PlacePCB(pMother);
+   return PlaceSiSensor(pMother);
+}
+
+G4VPhysicalVolume* E16G4_SSD::PlaceSiSensor(G4LogicalVolume *pMother){
+  //def
+  //  const G4double sizex_sensor = 50.0*mm;
+  //  const G4double sizey_sensor = 50.0*mm;
+
+  //for start counter
+  //sako 2019/04/14
+
+  G4double sizex_sensor = 50.0*mm;
+  G4double sizey_sensor = 50.0*mm;
+
+  /*
+  if (id_==16) {
+    //sako
+    sizex_sensor = 400.0*mm;
+    sizey_sensor = 400.0*mm;
+  }
+  */
+  //sako 2020/01/19, run0 z=1076, dx=576.6
+  if (id_==16) {
+    //sako
+    sizex_sensor = 577.0*mm;
+    sizey_sensor = 577.0*mm;
+  }
+
+   const G4double thickness_sensor = 0.3*mm;
+   //const G4double thickness_sensor = 1.0*mm;
+   //const G4double thickness_sensor = 3.0*mm;
+   G4String name_sensor = elemName_+"_Sensor";
+
+   G4Box *boxSi = new G4Box(name_sensor, sizex_sensor/2.0, sizey_sensor/2.0, thickness_sensor/2.0);
+   detLV_ = new G4LogicalVolume(boxSi, mSi_, name_sensor);
+   //   G4VisAttributes *va = new G4VisAttributes(G4Color(1.,0.,0.));
+   //def
+   G4VisAttributes *va = new G4VisAttributes(G4Color(0.,0.,1.));
+   //   G4VisAttributes *va = new G4VisAttributes(G4Color(1.,1.,1.));
+   detLV_->SetVisAttributes(va);
+
+   G4ThreeVector pos_sensor = gPos_;
+
+   G4cout << "E16G4_SSD::PlaceSiSensor : ID = " << id_ << ", pos = " << pos_sensor/mm << G4endl;
+   G4VPhysicalVolume *detPV = new G4PVPlacement(&rotMtx_, pos_sensor, detLV_, name_sensor, pMother, false, id_);
+   return detPV;
+}
+
+
+G4VPhysicalVolume* E16G4_SSD::PlacePCB(G4LogicalVolume *pMother){
+  //def
+  /*
+  const G4double sizex_pcbOut = 60.0*mm; 
+   const G4double sizey_pcbOut = 62.0*mm;
+   //really 62.5, to make gap 1mm between up/mid/low, to see easier
+   const G4double thickness_pcb = 1.0*mm;
+   const G4double sizex_pcbIn = 50.0*mm;
+   const G4double sizey_pcbIn = 50.0*mm;
+  */
+
+  //for start counter   //sako 2019/04/16
+
+  G4double sizex_pcbOut = 60.0*mm; 
+   G4double sizey_pcbOut = 62.0*mm;
+   //really 62.5, to make gap 1mm between up/mid/low, to see easier
+   G4double thickness_pcb = 1.0*mm;
+   G4double sizex_pcbIn = 50.0*mm;
+   G4double sizey_pcbIn = 50.0*mm;
+   //sako for start counter
+   /*
+  if (id_==16) {
+//    sizex_pcbOut = 210.0*mm; 
+///   sizey_pcbOut = 212.0*mm;
+   //really 62.5, to make gap 1mm between up/mid/low, to see easier
+   thickness_pcb = 1.0*mm;
+   sizex_pcbIn = 200.0*mm;
+   sizey_pcbIn = 200.0*mm;
+  }
+   */
+  //sako 2020/01/19, run0 z=1076, dx=576.6
+  if (id_==16) {
+   //really 62.5, to make gap 1mm between up/mid/low, to see easier
+   thickness_pcb = 1.0*mm;
+   sizex_pcbIn = 577.0*mm;
+   sizey_pcbIn = 577.0*mm;
+  }
+
+   G4String name_pcb = elemName_+"_PCB";
+
+   G4Box* boxPcbOuter = new G4Box(name_pcb, sizex_pcbOut/2.0, sizey_pcbOut/2.0, thickness_pcb/2.0);
+   G4Box* boxPcbInner = new G4Box(name_pcb, sizex_pcbIn/2.0, sizey_pcbIn/2.0, thickness_pcb/2.0);
+
+   G4SubtractionSolid *ssdPcb= new
+     G4SubtractionSolid(name_pcb, boxPcbOuter, boxPcbInner);
+
+   pcbLV_ = new G4LogicalVolume(ssdPcb, mPCB_, name_pcb);
+
+   //def   G4VisAttributes *va = new G4VisAttributes( G4Color(0., 0., 0.5) );
+   //   G4VisAttributes *va = new G4VisAttributes( G4Color(0., 0., 1.) );
+   G4VisAttributes *va = new G4VisAttributes( G4Color(0., 1., 1.) );
+   pcbLV_->SetVisAttributes(va);
+
+   G4ThreeVector pos_pcb = gPos_;
+
+   G4cout << "E16G4_SSD::PlacePCB : ID = " << id_ << ", pos = " << pos_pcb/mm << G4endl;
+   G4VPhysicalVolume *pcbPV = new G4PVPlacement(&rotMtx_, 
+     pos_pcb, pcbLV_, name_pcb, pMother, false, id_);
+   return pcbPV;
+}
+
