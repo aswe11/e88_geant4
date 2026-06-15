@@ -2,8 +2,9 @@
 //2016-03-18, uploaded by nakai
 
 #include "E88G4_RPCHit.hh"
+#include <G4SystemOfUnits.hh>
 
-G4Allocator<E88G4_RPCHit> RPCHitAllocator;
+G4Allocator<E88G4_RPCHit> E88G4_RPCHitAllocator;
 
 E88G4_RPCHit::E88G4_RPCHit()
  : gpos_(0.,0.,0.), time_(0.){

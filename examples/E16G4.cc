@@ -10,14 +10,13 @@
 #include <G4UIterminal.hh>
 //#include <G4UIExecutive.hh>
 #include <G4PhysListFactory.hh>
-#include <G4StepLimiterBuilder.hh>
+#include <G4StepLimiterPhysics.hh>
 #include <G4DecayTable.hh>
 #include <G4PhaseSpaceDecayChannel.hh>
 #ifdef G4UI_USE_TCSH
 #include <G4UItcsh.hh>
 #endif
 #include "G4ParticleTable.hh"//sako
-#include <QGSP.hh>
 #include <QGSP_BERT.hh>
 #include <QGSP_BERT_HP.hh>
 //#include <PhysicsListMessenger.hh>
@@ -42,7 +41,7 @@
 #include "E88_PhysicsList.hh"
 #include "E16ANA_ParamManager.hh"
 
-#include "E16ANA_G4OutputData.hh"
+#include "E88_G4OutputData.hh"
 
 #include "E16ANA_GeometryV2.hh"
 
@@ -99,7 +98,7 @@ int main(int argc, char** argv)
   
   //if(!phys) {phys = new E88_PhysicsList();}
   
-  phys->RegisterPhysics(new G4StepLimiterBuilder);
+  phys->RegisterPhysics(new G4StepLimiterPhysics);
   runMgr-> SetUserInitialization(phys);
 
 

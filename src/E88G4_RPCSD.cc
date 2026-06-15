@@ -6,6 +6,8 @@
 #include <G4VProcess.hh>
 
 #include "E88G4_RPCSD.hh"
+#include <G4SystemOfUnits.hh>
+#include <G4PhysicalConstants.hh>
 
 E88G4_RPCSD::E88G4_RPCSD(const G4String &name, const E88_GeometryV2 *geom) : 
    G4VSensitiveDetector(name), geom_(geom)

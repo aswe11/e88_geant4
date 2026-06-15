@@ -52,8 +52,8 @@ ifeq ($(ROOT_LIBS),)
   ROOTLIBS_DYN  = $(ROOTLIBS_DYN_CCJ)
   ROOTLIBS_STAT = $(ROOTLIBS_STAT_CCJ)
 else
-  ROOTLIBS_DYN  = $(ROOT_LIBS)
-  ROOTLIBS_STAT = $(ROOT_LIBS)
+  ROOTLIBS_DYN  = $(ROOT_LIBS) -lMinuit -lEG
+  ROOTLIBS_STAT = $(ROOT_LIBS) -lMinuit -lEG
 endif
 
 ifeq ($(ROOT_CFLAGS),)
@@ -79,6 +79,7 @@ endif
 G4INCLUDE_FLAGS   := $(filter-out -std=c++11 -std=c++14 -std=c++17 -std=c++20, $(G4INCLUDE_FLAGS))
 
 CLHEPLIB =
+QTLIBS   = -lQt5Widgets -lQt5Gui -lQt5Core -lQt5OpenGL
 
 G4LIB    = $(G4_LIBS)
 
@@ -88,7 +89,7 @@ G4LIB    = $(G4_LIBS)
 E16ANA_LOCAL_DIR = ./E16ANA_src
 E16ANA_LOCAL_INC = ./E16ANA_include
 E16INCLUDE       = $(E16ANA_LOCAL_INC)
-E16ANALIB        = -L./lib64 -lE16ANA_local
+E16ANALIB        = lib64/libE16ANA_local.a
 LIB_E16ANA_LOCAL = lib64/libE16ANA_local.a
 
 E16ANA_SRCS = $(wildcard $(E16ANA_LOCAL_DIR)/*.cc)
@@ -106,7 +107,7 @@ $(OBJD)e16ana_%.o: $(E16ANA_LOCAL_DIR)/%.cc
 # ------------------------------------
 
 
-E16G4LIBlocal   = -L./lib64 -lE16G4
+E16G4LIBlocal   = lib64/libE16G4.a
 
 CC = g++
 AR = ar
@@ -115,8 +116,8 @@ SHADOP = -shared -fPIC
 
 INCDIR= -I./include/ -I$(E16INCLUDE) -I./E16G4_include $(ROOTINCLUDE_FLAGS) $(G4INCLUDE_FLAGS)
 
-CCFLAGS = -O3 -Wall -g -std=c++17
-STATFLAGS = -static ${CCFLAGS} 
+CCFLAGS = -O3 -Wall -g -std=c++17 -fPIC
+STATFLAGS = ${CCFLAGS} 
 
 
 #.cc.o:
@@ -155,6 +156,7 @@ lib: ${LIB_STAT}
 E16G4_LOCAL_DIR = ./E16G4_src
 
 SRCS_E16G4 = $(wildcard $(E16G4_LOCAL_DIR)/*.cc)
+SRCS_E16G4 := $(filter-out $(E16G4_LOCAL_DIR)/E16G4_Analysis2.cc $(E16G4_LOCAL_DIR)/E16G4_PrimaryGeneratorAction2.cc $(E16G4_LOCAL_DIR)/E16G4_PrimaryGeneratorAction3.cc $(E16G4_LOCAL_DIR)/E16G4_PhysicsList.cc $(E16G4_LOCAL_DIR)/E16G4_PhysicsListHP.cc $(E16G4_LOCAL_DIR)/E16G4_Transportation.cc $(E16G4_LOCAL_DIR)/E16G4_VD.cc $(E16G4_LOCAL_DIR)/E16G4_VDCylinder.cc, $(SRCS_E16G4))
 SRCS_E88   = $(SRCD)E88G4_RPC.cc \
              $(SRCD)E88G4_RPCHit.cc \
              $(SRCD)E88G4_RPCSD.cc \
@@ -162,7 +164,9 @@ SRCS_E88   = $(SRCD)E88G4_RPC.cc \
              $(SRCD)E88_PhysicsList.cc \
              $(SRCD)E88_GeometryV2.cc \
              $(SRCD)E88_G4OutputData.cc \
-             $(SRCD)E88_TrackFinding_Nakai.cc
+             $(SRCD)E88_TrackFinding_Nakai.cc \
+             $(SRCD)E88G4_VD.cc \
+             $(SRCD)E88G4_VDCylinder.cc
 
 SRCS0 = $(SRCS_E16G4) $(SRCS_E88)
 
@@ -194,9 +198,9 @@ stat2:${EXAMPLE3}.stat
 
 
 $(OBJD)%.o: $(SRCED)%.cc
-	${CC} ${CCFLAGS} ${INCDIR} -c  $< -o $@
+	${CC} ${CCFLAGS} -fpermissive -include E16ANA_include/E16ANA_namespace_shim.h ${INCDIR} -c  $< -o $@
 $(OBJD)%vis.o: $(SRCED)%.cc
-	${CC} ${CCFLAGS} ${INCDIR} -c  $< -o $@ -DG4VIS_USE
+	${CC} ${CCFLAGS} -fpermissive -include E16ANA_include/E16ANA_namespace_shim.h ${INCDIR} -c  $< -o $@ -DG4VIS_USE
 
 %.stat: $(OBJED)%.o ${LIB_STAT}
 	@echo " --  re-link because $? is/are modified --"
@@ -213,10 +217,10 @@ $(OBJD)%vis.o: $(SRCED)%.cc
 
 %.dyn: $(OBJED)%.o ${LIB_SO}
 	@echo " --  dyn --"
-	nice time ${CC}  -o $@ -DG4VIS_USE $< ${E16G4LIBlocal} ${E16ANALIB} ${G4LIB} ${CLHEPLIB}  ${ROOTLIBS_DYN}
+	nice time ${CC}  -o $@ -DG4VIS_USE $< ${E16G4LIBlocal} ${E16ANALIB} ${G4LIB} ${CLHEPLIB} ${QTLIBS} ${ROOTLIBS_DYN}
 
 %.vis-stat: $(OBJED)%vis.o $(LIB_STAT)
-	nice time ${CC} ${STATFLAGS}  -o $@ $<  ${E16G4LIBlocal}  ${E16ANALIB} ${G4LIB} ${CLHEPLIB}  ${ROOTLIBS_STAT};
+	nice time ${CC} ${STATFLAGS}  -o $@ $<  ${E16G4LIBlocal}  ${E16ANALIB} ${G4LIB} ${CLHEPLIB}  ${QTLIBS} ${ROOTLIBS_STAT};
 
 
 #%.g4out2tree: $(OBJED)g4out2tree.o ${LIB_STAT}
@@ -260,7 +264,7 @@ $(OBJD)%.o : $(SRCD)%.cc
 
 $(OBJED)%.o : $(SRCED)%.cc
 	@echo " ---  recompile because *** $? *** is modified ---"
-	${CC} ${CCFLAGS} ${INCDIR} -c  $< -o $@ 
+	${CC} ${CCFLAGS} -fpermissive -include E16ANA_include/E16ANA_namespace_shim.h ${INCDIR} -c  $< -o $@ 
 #-------------------------------------------
 #  dependency check section
 

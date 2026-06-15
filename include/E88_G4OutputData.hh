@@ -17,9 +17,22 @@
 //2015-03-01, uploaded by yokkaich
 //E88_G4OutputData.hh 150120 by S. Yokkaichi
 //    Last modified at <2015-08-20 20:19:17 >
-
 #ifndef E88_G4OutputData_HH
 #define E88_G4OutputData_HH
+#define E16ANA_G4OutputData_HH
+
+#define E16ANA_G4RunHeader E88_G4RunHeader
+#define E16ANA_G4EventHeader E88_G4EventHeader
+#define E16ANA_G4BitFlag E88_G4BitFlag
+#define E16ANA_G4Trajectory E88_G4Trajectory
+#define E16ANA_G4Track E88_G4Track
+#define E16ANA_G4Hit E88_G4Hit
+#define E16ANA_G4HitSimple E88_G4HitSimple
+#define E16ANA_G4Detector E88_G4Detector
+#define E16ANA_G4DecayChain E88_G4DecayChain
+#define E16ANA_G4Event E88_G4Event
+#define E16ANA_G4OutputData E88_G4OutputData
+#define E16ANA_G4ModuleHitList E88_G4ModuleHitList
 
 #include <stdio.h>
 #include <string.h>

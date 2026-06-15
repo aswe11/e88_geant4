@@ -3,6 +3,8 @@
 //2016-04-01, uploaded by nakai
 #ifndef E88_GeometryV2_hh
 #define E88_GeometryV2_hh
+#define E16ANA_GeometryV2_hh
+#define E16ANA_GeometryV2 E88_GeometryV2
 
 #include <string>
 #include <sstream>
@@ -15,6 +17,7 @@
 
 #include <G4ThreeVector.hh>
 #include <G4RotationMatrix.hh>
+#include <G4SystemOfUnits.hh>
 
 #include "E16ANA_Geometry.hh"
 

@@ -57,7 +57,7 @@ static const double fieldScale = 1.;//scaler factor for the magnetic field def=1
 {
   //org   fmf = new   E16ANA_MagneticFieldConstBz(Bz/gauss);
   //new sako 2023/4/4
-  fmf = new   E16ANA_MagneticFieldConst(Bz,2);//tesla
+  fmf = new   E16ANA_MagneticFieldConstBz(Bz/gauss);
 }
 
 

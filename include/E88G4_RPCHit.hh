@@ -100,16 +100,15 @@ inline const E88G4_RPCHit& E88G4_RPCHit::operator=(const E88G4_RPCHit& right){
 
 typedef G4THitsCollection<E88G4_RPCHit> RPCHitsCollection;
 
-extern G4Allocator<E88G4_RPCHit> RPCHitAllocator;
+extern G4Allocator<E88G4_RPCHit> E88G4_RPCHitAllocator;
 
 inline void* E88G4_RPCHit::operator new(size_t){
-   void* aHit= (void*)RPCHitAllocator.MallocSingle();
+   void* aHit= (void*)E88G4_RPCHitAllocator.MallocSingle();
    return aHit;
 }
 
 inline void E88G4_RPCHit::operator delete(void* aHit){
-   RPCHitAllocator.FreeSingle((E88G4_RPCHit*) aHit);
+   E88G4_RPCHitAllocator.FreeSingle((E88G4_RPCHit*) aHit);
 }
 
 #endif // E88G4_RPCHit_hh
-

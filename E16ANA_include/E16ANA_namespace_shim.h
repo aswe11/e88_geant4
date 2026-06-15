@@ -58,4 +58,29 @@ public:
 #include <G4SystemOfUnits.hh>
 using namespace CLHEP;
 
+// 5. E88 type redirections
+#include "E88_GeometryV2.hh"
+#include "E88_G4OutputData.hh"
+#include "E88_TrackFinding_Nakai.hh"
+
+#define E16ANA_GeometryV2_hh
+#define E16ANA_G4OutputData_HH
+#define E16ANA_TrackFinding_Nakai_hh
+
+#define E16ANA_TrackFinding_Nakai E88_TrackFinding_Nakai
+
+#define E16ANA_G4RunHeader E88_G4RunHeader
+#define E16ANA_G4EventHeader E88_G4EventHeader
+#define E16ANA_G4BitFlag E88_G4BitFlag
+#define E16ANA_G4Trajectory E88_G4Trajectory
+#define E16ANA_G4Track E88_G4Track
+#define E16ANA_G4Hit E88_G4Hit
+#define E16ANA_G4HitSimple E88_G4HitSimple
+#define E16ANA_G4Detector E88_G4Detector
+#define E16ANA_G4DecayChain E88_G4DecayChain
+#define E16ANA_G4Event E88_G4Event
+#define E16ANA_G4OutputData E88_G4OutputData
+#define E16ANA_G4ModuleHitList E88_G4ModuleHitList
+#define E16ANA_GeometryV2 E88_GeometryV2
+
 #endif // E16ANA_NAMESPACE_SHIM_H

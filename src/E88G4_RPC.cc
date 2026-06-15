@@ -9,17 +9,18 @@
 #include <G4LogicalVolume.hh>
 #include <G4VPhysicalVolume.hh>
 #include <G4PVPlacement.hh>
+#include <G4SystemOfUnits.hh>
 
 #include "E88G4_RPC.hh"
 
 E88G4_RPC::E88G4_RPC(const G4String &name, const G4ThreeVector &gPos, const G4RotationMatrix *rotMtx, int id) : 
    E16G4_BeamLineElement(name, gPos, rotMtx),
    mGlass_(0), // materials
-   detLV_(0), // logical volumes
    mPCB_(0),
-   pcbLV_(0),
    mAir_(0),
    mCu_(0),
+   detLV_(0), // logical volumes
+   pcbLV_(0),
    id_(id)
 {
 }

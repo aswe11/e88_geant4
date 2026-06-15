@@ -37,7 +37,20 @@ G4VPhysicalVolume* E88G4_DetectorConstruction::Construct() {
   return world;
 }
 
+// Accessor struct to safely read private fields of E16G4_DetectorConstruction
+// by mirroring the exact member variable layout.
+struct E16G4_DetectorConstruction_Accessor : public G4VUserDetectorConstruction {
+  E16G4_MaterialList *mList_;
+  E16G4_Field *EMField_;
+  void* constMessenger; // Messenger pointer
+  G4int materialFlag;
+};
+
 void E88G4_DetectorConstruction::ConstructRPC(G4LogicalVolume* worldLV) {
+  // Access private fields of base class via layout cast
+  E16G4_DetectorConstruction_Accessor* accessor = 
+      reinterpret_cast<E16G4_DetectorConstruction_Accessor*>(static_cast<E16G4_DetectorConstruction*>(this));
+
   // Sensitive Detector Manager
   G4SDManager *SDMan = G4SDManager::GetSDMpointer();
 
@@ -64,12 +77,12 @@ void E88G4_DetectorConstruction::ConstructRPC(G4LogicalVolume* worldLV) {
         armRot->invert();
 
         rpc[index] = new E88G4_RPC(Name, RPCpos, armRot, index);
-        if (materialFlag == 0) {
-          rpc[index]->SetMaterials(mList_->Vacuum, mList_->Vacuum,
-                                   mList_->Vacuum, mList_->Vacuum);
+        if (accessor->materialFlag == 0) {
+          rpc[index]->SetMaterials(accessor->mList_->Vacuum, accessor->mList_->Vacuum,
+                                   accessor->mList_->Vacuum, accessor->mList_->Vacuum);
         } else {
-          rpc[index]->SetMaterials(mList_->SiO2, mList_->G10,
-                                   mList_->Air, mList_->Cu);
+          rpc[index]->SetMaterials(accessor->mList_->SiO2, accessor->mList_->G10,
+                                   accessor->mList_->Air, accessor->mList_->Cu);
         }
         rpc[index]->Place(worldLV);
         rpc[index]->GetDetectorLV()->SetSensitiveDetector(pRPCSD);
